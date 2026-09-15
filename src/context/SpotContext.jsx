@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { where } from 'firebase/firestore';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
-import { db, hasFirebaseConfig, createIsolatedAuth } from '../lib/firebase';
+import { db, hasFirebaseConfig, createIsolatedAuth, storage } from '../lib/firebase';
 import { subscribeCollection, updateItem, addItem, removeItem, setItem, uploadDataUrl } from '../lib/dataSource';
 import { useAuth } from './AuthContext';
 
@@ -36,6 +37,27 @@ function getAuthErrorMessage(error) {
     default:
       return error?.message || 'Could not create the guard login.';
   }
+}
+
+function getIncidentPhotoUrls(doc) {
+  const photoFields = [doc.photoUrls, doc.photoPaths, doc.photoUrl, doc.evidencePhotos, doc.evidencePhoto, doc.imageUrls, doc.imageUrl, doc.photos, doc.images];
+  return photoFields
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map((value) => typeof value === 'object' && value !== null ? (value.url || value.downloadUrl || value.path || '') : value)
+    .filter((value) => typeof value === 'string' && value.trim())
+    .map((value) => value.trim())
+    .filter((value, index, values) => values.indexOf(value) === index);
+}
+
+async function resolveIncidentPhotoUrls(photoUrls) {
+  return Promise.all(photoUrls.map(async (photoUrl) => {
+    if (/^(https?:|data:|blob:)/i.test(photoUrl) || !storage) return photoUrl;
+    try {
+      return await getDownloadURL(storageRef(storage, photoUrl));
+    } catch (_) {
+      return photoUrl;
+    }
+  }));
 }
 
 function playChime() {
@@ -137,8 +159,11 @@ export function SpotProvider({ children }) {
     };
 
     // 1. Incidents
-    const unsubIncidents = subscribeForRole('incidents', (fsIncidents) => {
-      const formatted = (fsIncidents || []).map((doc) => ({
+    const unsubIncidents = subscribeForRole('incidents', async (fsIncidents) => {
+      const formatted = await Promise.all((fsIncidents || []).map(async (doc) => {
+        const photoUrls = await resolveIncidentPhotoUrls(getIncidentPhotoUrls(doc));
+        return {
+        photoUrls,
         id: doc.id,
         title: doc.title || doc.type || 'Field Incident',
         priority: doc.priority || 'Medium',
@@ -150,11 +175,11 @@ export function SpotProvider({ children }) {
         client: doc.client || '',
         timestamp: doc.createdAt?.toDate ? doc.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
         status: doc.status || 'Investigating',
-        photoUrls: Array.isArray(doc.photoUrls) ? doc.photoUrls.filter(Boolean) : [],
-        photoCount: Number(doc.photoCount) || (Array.isArray(doc.photoUrls) ? doc.photoUrls.length : 0),
-        evidencePhoto: doc.evidencePhoto || doc.photoUrl || '',
+        photoCount: Number(doc.photoCount) || photoUrls.length,
+        evidencePhoto: photoUrls[0] || '',
         description: doc.description || 'Reported incident.',
         actionsTaken: doc.actionsTaken || 'Pending review.'
+        };
       }));
       setIncidents(formatted);
     });
