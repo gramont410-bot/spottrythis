@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { where } from 'firebase/firestore';
-import { createUserWithEmailAndPassword, deleteUser, signOut } from 'firebase/auth';
+import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
 import { db, hasFirebaseConfig, createIsolatedAuth } from '../lib/firebase';
 import { subscribeCollection, updateItem, addItem, removeItem, setItem, uploadDataUrl } from '../lib/dataSource';
 import { useAuth } from './AuthContext';
@@ -94,20 +94,21 @@ export function SpotProvider({ children }) {
   // Toasts Notification Stack
   const [toasts, setToasts] = useState([]);
 
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
   const addToast = useCallback((title, message, type = 'info') => {
     const newToast = {
-      id: `toast-${Date.now()}`,
+      id: `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       title,
       message,
       type,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
     setToasts((prev) => [newToast, ...prev.slice(0, 4)]);
-  }, []);
-
-  const removeToast = useCallback((id) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+    window.setTimeout(() => removeToast(newToast.id), 3000);
+  }, [removeToast]);
 
   const openGuardDrawer = (guard) => {
     setSelectedGuard(guard);
@@ -149,7 +150,9 @@ export function SpotProvider({ children }) {
         client: doc.client || '',
         timestamp: doc.createdAt?.toDate ? doc.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
         status: doc.status || 'Investigating',
-        evidencePhoto: doc.evidencePhoto || doc.photoUrl || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80',
+        photoUrls: Array.isArray(doc.photoUrls) ? doc.photoUrls.filter(Boolean) : [],
+        photoCount: Number(doc.photoCount) || (Array.isArray(doc.photoUrls) ? doc.photoUrls.length : 0),
+        evidencePhoto: doc.evidencePhoto || doc.photoUrl || '',
         description: doc.description || 'Reported incident.',
         actionsTaken: doc.actionsTaken || 'Pending review.'
       }));
@@ -1165,7 +1168,6 @@ export function SpotProvider({ children }) {
       const credential = await createUserWithEmailAndPassword(isolated.auth, email, password);
       createdAuthUser = credential.user;
       const authUid = createdAuthUser.uid;
-      const photo = await persistGuardPhoto(authUid, newGuard.photo);
 
       const created = {
         id: authUid,
@@ -1204,7 +1206,7 @@ export function SpotProvider({ children }) {
         deviceId: null,
         performanceRating: 100,
         attendanceRate: 100,
-        photo,
+        photo: '',
         role: 'guard',
         authProvider: 'password',
         mustChangePassword: true,
@@ -1218,6 +1220,20 @@ export function SpotProvider({ children }) {
       firestoreProfileCreated = true;
 
       setGuards((prev) => [created, ...prev.filter((guard) => guard.id !== authUid)]);
+
+      if (newGuard.photo) {
+        persistGuardPhoto(authUid, newGuard.photo)
+          .then((photo) => {
+            if (!photo) return;
+            setGuards((prev) => prev.map((guard) => (
+              guard.id === authUid ? { ...guard, photo } : guard
+            )));
+            return updateItem('users', authUid, { photo });
+          })
+          .catch((photoError) => {
+            console.warn('Firebase Storage guard photo upload:', photoError);
+          });
+      }
 
       addToast(
         'Guard Account Created',
@@ -1239,9 +1255,6 @@ export function SpotProvider({ children }) {
 
       throw new Error(error?.code?.startsWith('auth/') ? getAuthErrorMessage(error) : (error?.message || 'Could not create the guard account.'));
     } finally {
-      try {
-        await signOut(isolated.auth);
-      } catch (_) {}
       try {
         await isolated.dispose();
       } catch (_) {}
@@ -1527,7 +1540,9 @@ export function SpotProvider({ children }) {
       reporterName: newInc.reporterName || 'Duty Guard',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       status: 'Investigating',
-      evidencePhoto: newInc.evidencePhoto || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80',
+      photoUrls: Array.isArray(newInc.photoUrls) ? newInc.photoUrls.filter(Boolean) : [],
+      photoCount: Array.isArray(newInc.photoUrls) ? newInc.photoUrls.filter(Boolean).length : 0,
+      evidencePhoto: newInc.evidencePhoto || '',
       description: newInc.description || 'Incident filed by supervisor.',
       actionsTaken: 'Dispatch notification logged.'
     };

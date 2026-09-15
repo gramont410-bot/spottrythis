@@ -2,8 +2,17 @@ import React, { useState } from 'react';
 import Layout from '../components/Layout';
 import { useSpot } from '../context/SpotContext';
 import {
-  AlertTriangle, CheckCircle2, Clock, Plus, X, Check, Trash2, Pencil
+  AlertTriangle, CheckCircle2, Clock, Plus, X, Check, Trash2, Pencil, Camera
 } from 'lucide-react';
+
+const INCIDENT_FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80';
+
+function getIncidentPhotos(incident) {
+  const storedPhotos = Array.isArray(incident.photoUrls) ? incident.photoUrls.filter(Boolean) : [];
+  if (storedPhotos.length > 0) return storedPhotos;
+  if (incident.evidencePhoto) return [incident.evidencePhoto];
+  return [INCIDENT_FALLBACK_IMAGE];
+}
 
 // ─── Modal Shell ──────────────────────────────────────────────────────────────
 function Modal({ title, subtitle, onClose, children, footer }) {
@@ -215,7 +224,7 @@ export default function Incidents() {
                 <div>
                   <div className="relative h-48 w-full">
                     <img
-                      src={incident.evidencePhoto || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80'}
+                      src={getIncidentPhotos(incident)[0]}
                       alt={incident.title}
                       className="h-full w-full object-cover"
                     />
@@ -229,6 +238,11 @@ export default function Incidents() {
                     }`}>
                       {incident.priority} Priority
                     </span>
+                    {getIncidentPhotos(incident).length > 1 && (
+                      <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-slate-950/80 px-2 py-1 text-[10px] font-bold text-white backdrop-blur-sm">
+                        <Camera className="h-3 w-3" /> {getIncidentPhotos(incident).length} photos
+                      </span>
+                    )}
                     {/* Delete button on hover */}
                     <button
                       onClick={(e) => { e.stopPropagation(); setDeleteTarget(incident); }}
@@ -305,11 +319,23 @@ export default function Incidents() {
             </div>
 
             <div className="max-h-[75vh] space-y-5 overflow-y-auto p-6 custom-scrollbar">
-              <img
-                src={selectedIncident.evidencePhoto || 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80'}
-                alt={selectedIncident.title}
-                className="h-64 w-full rounded-xl border border-slate-700 object-cover shadow-md"
-              />
+              <div>
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Incident photos</h4>
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                    <Camera className="h-3.5 w-3.5" /> {selectedIncident.photoCount || getIncidentPhotos(selectedIncident).length} attached
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {getIncidentPhotos(selectedIncident).map((photoUrl, index) => (
+                    <a key={`${photoUrl}-${index}`} href={photoUrl} target="_blank" rel="noreferrer" className="group relative block overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+                      <img src={photoUrl} alt={`${selectedIncident.title} evidence ${index + 1}`} className="h-64 w-full object-cover transition duration-300 group-hover:scale-[1.02]" />
+                      <span className="absolute bottom-2 right-2 rounded-md bg-slate-950/80 px-2 py-1 text-[10px] text-slate-200 opacity-0 transition group-hover:opacity-100">Open photo</span>
+                    </a>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-slate-500">Photos captured in the patrol app are stored in Firebase Storage and displayed here from the incident's Firestore photo URLs.</p>
+              </div>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-blue-500/15 bg-blue-500/5 p-4"><div className="text-[10px] font-bold uppercase tracking-wider text-blue-300">Location</div><div className="mt-2 text-sm font-bold text-white">{selectedIncident.location || 'Not specified'}</div><div className="mt-1 text-xs text-slate-400">{selectedIncident.siteName || 'Facility not specified'}</div></div>
