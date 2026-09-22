@@ -1885,6 +1885,215 @@ export default function Sites() {
     };
 
   // ─────────────────────────────────────────────
+  // Delete checkpoint + synchronize active patrol requirements
+  // ─────────────────────────────────────────────
+
+  const handleDeleteCheckpoint =
+    async (checkpoint) => {
+      if (
+        !checkpoint ||
+        !selectedSite
+      ) {
+        return;
+      }
+
+      if (
+        !confirm(
+          `Delete QR checkpoint ${checkpoint.name}?\n\nIf a patrol is currently in progress, this checkpoint will also be removed from that patrol's remaining requirements.`
+        )
+      ) {
+        return;
+      }
+
+      setSaving(true);
+
+      try {
+        const now = new Date();
+
+        // Keep only active patrols that actually contain this checkpoint.
+        // Completed patrols are never rewritten because their checkpoint
+        // snapshot is part of the historical audit trail.
+        const affectedPatrols =
+          patrols.filter(
+            (patrol) => {
+              const status =
+                String(
+                  patrol.status ||
+                    ''
+                )
+                  .trim()
+                  .toUpperCase()
+                  .replace(
+                    /[\s-]+/g,
+                    '_'
+                  );
+
+              return (
+                [
+                  'IN_PROGRESS',
+                  'ACTIVE',
+                  'ON_PATROL'
+                ].includes(
+                  status
+                ) &&
+                Array.isArray(
+                  patrol.requiredCheckpointIds
+                ) &&
+                patrol.requiredCheckpointIds.some(
+                  (id) =>
+                    String(id) ===
+                    String(
+                      checkpoint.id
+                    )
+                )
+              );
+            }
+          );
+
+        // Update the active patrol snapshot before deleting the definition.
+        // This ensures Android and the supervisor console immediately agree
+        // on the new checkpoint total.
+        await Promise.all(
+          affectedPatrols.map(
+            async (patrol) => {
+              const oldIds =
+                Array.isArray(
+                  patrol.requiredCheckpointIds
+                )
+                  ? patrol.requiredCheckpointIds.map(
+                      (id) => String(id)
+                    )
+                  : [];
+
+              const oldNames =
+                Array.isArray(
+                  patrol.requiredCheckpointNames
+                )
+                  ? patrol.requiredCheckpointNames
+                  : [];
+
+              const nextIds = [];
+              const nextNames = [];
+
+              oldIds.forEach(
+                (id, index) => {
+                  if (
+                    id !==
+                    String(
+                      checkpoint.id
+                    )
+                  ) {
+                    nextIds.push(id);
+                    nextNames.push(
+                      oldNames[index] ||
+                        'Checkpoint'
+                    );
+                  }
+                }
+              );
+
+              const completedIds =
+                Array.isArray(
+                  patrol.completedCheckpointIds
+                )
+                  ? patrol.completedCheckpointIds
+                      .map(
+                        (id) =>
+                          String(id)
+                      )
+                      .filter(
+                        (id) =>
+                          nextIds.includes(
+                            id
+                          )
+                      )
+                  : [];
+
+              const allRemainingDone =
+                nextIds.length === 0 ||
+                completedIds.length >=
+                  nextIds.length;
+
+              const patch = {
+                requiredCheckpointIds:
+                  nextIds,
+
+                requiredCheckpointNames:
+                  nextNames,
+
+                totalCheckpoints:
+                  nextIds.length,
+
+                completedCheckpointIds:
+                  completedIds,
+
+                completedCheckpoints:
+                  completedIds.length,
+
+                checkpointRequirementsUpdatedAt:
+                  now,
+
+                checkpointRequirementsUpdateReason:
+                  'CHECKPOINT_DELETED_BY_SUPERVISOR',
+
+                updatedAt:
+                  now
+              };
+
+              if (
+                allRemainingDone
+              ) {
+                patch.status =
+                  'COMPLETED';
+
+                patch.completedAt =
+                  now;
+
+                patch.completionReason =
+                  nextIds.length === 0
+                    ? 'ALL_REQUIRED_CHECKPOINTS_REMOVED'
+                    : 'REMAINING_CHECKPOINTS_ALREADY_COMPLETED';
+              }
+
+              await updateItem(
+                'patrol_logs',
+                patrol.id,
+                patch
+              );
+            }
+          )
+        );
+
+        await removeItem(
+          'checkpoints',
+          checkpoint.id
+        );
+
+        addToast(
+          'QR Checkpoint Removed',
+          affectedPatrols.length > 0
+            ? `${checkpoint.name} was removed from ${selectedSite.name} and ${affectedPatrols.length} active patrol requirement${affectedPatrols.length === 1 ? '' : 's'} were synchronized.`
+            : `${checkpoint.name} was removed from ${selectedSite.name}.`,
+          'info'
+        );
+      } catch (error) {
+        console.error(
+          'Checkpoint deletion failed:',
+          error
+        );
+
+        addToast(
+          'Unable to Delete Checkpoint',
+          error?.message ||
+            'The checkpoint could not be removed completely.',
+          'danger'
+        );
+      } finally {
+        setSaving(false);
+      }
+    };
+
+  // ─────────────────────────────────────────────
   // Guard actions
   // ─────────────────────────────────────────────
 
@@ -3721,27 +3930,13 @@ export default function Sites() {
 
                             <button
                               type="button"
-                              onClick={async () => {
-                                if (
-                                  !confirm(
-                                    `Delete QR checkpoint ${cp.name}?`
-                                  )
-                                ) {
-                                  return;
-                                }
-
-                                await removeItem(
-                                  'checkpoints',
-                                  cp.id
-                                );
-
-                                addToast(
-                                  'QR Checkpoint Removed',
-                                  `${cp.name} was removed from ${selectedSite.name}.`,
-                                  'info'
-                                );
-                              }}
-                              className="rounded-xl border border-rose-700/40 bg-rose-500/10 px-3 py-2 text-[10px] font-bold text-rose-400 hover:bg-rose-500/20"
+                              disabled={saving}
+                              onClick={() =>
+                                handleDeleteCheckpoint(
+                                  cp
+                                )
+                              }
+                              className="rounded-xl border border-rose-700/40 bg-rose-500/10 px-3 py-2 text-[10px] font-bold text-rose-400 hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                               Delete
                             </button>

@@ -598,43 +598,80 @@ export function SpotProvider({ children }) {
         }
       }
 
-      const requiredCheckpointIds =
-        Array.isArray(log.requiredCheckpointIds) &&
-        log.requiredCheckpointIds.length > 0
-          ? log.requiredCheckpointIds
-          : expectedCheckpoints.map((checkpoint) => checkpoint.id);
+      // While a patrol is IN_PROGRESS, the supervisor's current checkpoint
+      // definitions are authoritative. This prevents a checkpoint that was
+      // deleted/unassigned after patrol start from remaining stuck in the
+      // live 2/4, 3/5, etc. progress view.
+      //
+      // Completed patrols intentionally keep their original checkpoint
+      // snapshot for historical/audit accuracy.
+      const useLiveCheckpointRequirements =
+        status === 'In Progress' && Boolean(assignment);
 
-      const requiredCheckpointNames =
-        Array.isArray(log.requiredCheckpointNames) &&
-        log.requiredCheckpointNames.length > 0
+      const storedRequiredCheckpointIds =
+        Array.isArray(log.requiredCheckpointIds)
+          ? log.requiredCheckpointIds.map((id) => String(id || ''))
+          : [];
+
+      const storedRequiredCheckpointNames =
+        Array.isArray(log.requiredCheckpointNames)
           ? log.requiredCheckpointNames
-          : expectedCheckpoints.map(
-              (checkpoint) =>
-                checkpoint.name ||
-                checkpoint.checkpointName ||
-                'Checkpoint'
-            );
+          : [];
 
-      const completedCheckpointIds = Array.isArray(log.completedCheckpointIds)
-        ? log.completedCheckpointIds
+      const requiredCheckpointIds = useLiveCheckpointRequirements
+        ? expectedCheckpoints.map((checkpoint) => checkpoint.id)
+        : storedRequiredCheckpointIds.length > 0
+        ? storedRequiredCheckpointIds
+        : expectedCheckpoints.map((checkpoint) => checkpoint.id);
+
+      const requiredCheckpointNames = useLiveCheckpointRequirements
+        ? expectedCheckpoints.map(
+            (checkpoint) =>
+              checkpoint.name ||
+              checkpoint.checkpointName ||
+              'Checkpoint'
+          )
+        : storedRequiredCheckpointNames.length > 0
+        ? storedRequiredCheckpointNames
+        : expectedCheckpoints.map(
+            (checkpoint) =>
+              checkpoint.name ||
+              checkpoint.checkpointName ||
+              'Checkpoint'
+          );
+
+      const storedCompletedCheckpointIds = Array.isArray(
+        log.completedCheckpointIds
+      )
+        ? log.completedCheckpointIds.map((id) => String(id || ''))
         : [];
+
+      const completedCheckpointIds = useLiveCheckpointRequirements
+        ? storedCompletedCheckpointIds.filter((id) =>
+            requiredCheckpointIds.includes(id)
+          )
+        : storedCompletedCheckpointIds;
 
       const checkpointScans = Array.isArray(log.checkpointScans)
         ? log.checkpointScans
         : [];
 
       const totalCount = Number(
-        log.totalCheckpoints ??
-          log.totalCount ??
-          requiredCheckpointIds.length ??
-          0
+        useLiveCheckpointRequirements
+          ? requiredCheckpointIds.length
+          : log.totalCheckpoints ??
+              log.totalCount ??
+              requiredCheckpointIds.length ??
+              0
       );
 
       const completedCount = Number(
-        log.completedCheckpoints ??
-          log.completedCount ??
-          completedCheckpointIds.length ??
-          0
+        useLiveCheckpointRequirements
+          ? completedCheckpointIds.length
+          : log.completedCheckpoints ??
+              log.completedCount ??
+              completedCheckpointIds.length ??
+              0
       );
 
       const safeTotal = Number.isFinite(totalCount) ? Math.max(0, totalCount) : 0;
