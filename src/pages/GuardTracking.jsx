@@ -5,6 +5,7 @@ import { db, hasFirebaseConfig } from '../lib/firebase';
 import {
   collection,
   onSnapshot,
+  orderBy,
   query,
   where
 } from 'firebase/firestore';
@@ -630,10 +631,11 @@ export default function GuardTracking() {
           'locationHistory'
         ),
         where(
-          'patrolId',
+          'patrolLogId',
           '==',
           patrolIdForRoute
-        )
+        ),
+        orderBy('timestamp', 'asc')
       );
 
     const unsubscribe =
@@ -651,13 +653,15 @@ export default function GuardTracking() {
                   const latitude =
                     Number(
                       data.latitude ??
-                      data.lat
+                        data.lat ??
+                        data.gpsLat
                     );
 
                   const longitude =
                     Number(
                       data.longitude ??
-                      data.lng
+                        data.lng ??
+                        data.gpsLng
                     );
 
                   return {
@@ -752,6 +756,7 @@ export default function GuardTracking() {
   const hasLiveCoordinates =
     Boolean(
       liveLocation &&
+      liveLocation.gpsAvailable === true &&
       Number.isFinite(
         liveLocation.latitude
       ) &&
@@ -833,6 +838,12 @@ export default function GuardTracking() {
   const freshness =
     getLocationFreshness(
       liveLocation?.updatedAt,
+      nowMs
+    );
+
+  const gpsFreshness =
+    getLocationFreshness(
+      liveLocation?.gpsTimestamp,
       nowMs
     );
 
@@ -1213,6 +1224,7 @@ export default function GuardTracking() {
                 />
 
                 <Marker
+                  key={`${activeGuard.id}:${mapCenter[0]}:${mapCenter[1]}`}
                   position={mapCenter}
                   icon={createLiveGuardMarker(
                     activeGuard.name,
@@ -1390,8 +1402,24 @@ export default function GuardTracking() {
                 <div className="flex items-center justify-between gap-3">
 
                   <span className="text-slate-400 flex items-center gap-1.5">
+                    <Activity className="h-4 w-4 text-violet-400" />
+                    Walking steps:
+                  </span>
+
+                  <span className="font-bold text-white text-right">
+                    {liveLocation?.stepCounterAvailable
+                      ? Number(liveLocation.walkingSteps || 0).toLocaleString()
+                      : 'Unavailable'}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-center justify-between gap-3">
+
+                  <span className="text-slate-400 flex items-center gap-1.5">
                     <Radio className="h-4 w-4 text-emerald-400" />
-                    GPS Update:
+                    Telemetry:
                   </span>
 
                   <span
@@ -1402,6 +1430,20 @@ export default function GuardTracking() {
                     }`}
                   >
                     {freshness.label}
+                  </span>
+
+                </div>
+
+
+                <div className="flex items-center justify-between gap-3">
+
+                  <span className="text-slate-400 flex items-center gap-1.5">
+                    <MapPin className="h-4 w-4 text-cyan-400" />
+                    Last GPS fix:
+                  </span>
+
+                  <span className={`font-bold text-right ${gpsFreshness.isFresh ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {liveLocation?.gpsAvailable ? gpsFreshness.label : 'Waiting for GPS'}
                   </span>
 
                 </div>

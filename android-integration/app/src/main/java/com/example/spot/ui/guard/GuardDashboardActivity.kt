@@ -3,6 +3,7 @@ package com.example.spot.ui.guard
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.LinearLayout
@@ -544,7 +545,7 @@ class GuardDashboardActivity : AppCompatActivity() {
     private fun startPatrolWithLocationPermission() {
 
         if (hasLocationPermission()) {
-            startScheduledPatrol()
+            requestActivityPermissionThenStart()
             return
         }
 
@@ -594,7 +595,7 @@ class GuardDashboardActivity : AppCompatActivity() {
         ) {
 
             if (hasLocationPermission()) {
-                startScheduledPatrol()
+                requestActivityPermissionThenStart()
             } else {
                 Toast.makeText(
                     this,
@@ -602,6 +603,26 @@ class GuardDashboardActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+        }
+
+        if (requestCode == ACTIVITY_PERMISSION_REQUEST_CODE) {
+            // Step counting is optional; patrol GPS should work even if it is declined.
+            startScheduledPatrol()
+        }
+    }
+
+    private fun requestActivityPermissionThenStart() {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACTIVITY_RECOGNITION),
+                ACTIVITY_PERMISSION_REQUEST_CODE
+            )
+        } else {
+            startScheduledPatrol()
         }
     }
 
@@ -3188,6 +3209,9 @@ class GuardDashboardActivity : AppCompatActivity() {
 
         private const val LOCATION_PERMISSION_REQUEST_CODE =
             4108
+
+        private const val ACTIVITY_PERMISSION_REQUEST_CODE =
+            4109
     }
 
 }

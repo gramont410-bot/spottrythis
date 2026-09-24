@@ -57,7 +57,7 @@ function LiveMapViewport({ guards, resetKey }) {
 }
 
 export default function Dashboard() {
-  const { stats, guards, liveEvents, openGuardDrawer, addToast } = useSpot();
+  const { stats, guards, guardLocations, liveEvents, openGuardDrawer, addToast } = useSpot();
   const [timeFilter, setTimeFilter] = useState('Daily');
   const [activeTab, setActiveTab] = useState('All');
   const [mapResetKey, setMapResetKey] = useState(0);
@@ -70,10 +70,19 @@ export default function Dashboard() {
   // Keep guards without a GPS fix in the dashboard, but never pass
   // null/invalid coordinates to Leaflet.
   const mappableGuards = visibleGuards.filter((guard) => {
-    const lat = Number(guard.gpsLat);
-    const lng = Number(guard.gpsLng);
+    const location = guardLocations.find((item) => (
+      [item.guardId, item.humanGuardId, item.id].some((id) => (
+        id != null && [guard.id, guard.guardId].some((guardId) => String(id) === String(guardId))
+      ))
+    ));
+    const lat = Number(location?.latitude);
+    const lng = Number(location?.longitude);
 
     return (
+      location?.tracking === true &&
+      location?.isStale === false &&
+      location?.gpsAvailable === true &&
+      location?.gpsIsStale === false &&
       Number.isFinite(lat) &&
       Number.isFinite(lng) &&
       lat >= -90 &&
@@ -174,14 +183,19 @@ export default function Dashboard() {
 
                 {/* Guard Markers on Map — only guards with a real GPS fix */}
                 {mappableGuards.map((guard) => {
-                  const lat = Number(guard.gpsLat);
-                  const lng = Number(guard.gpsLng);
+                  const location = guardLocations.find((item) => (
+                    [item.guardId, item.humanGuardId, item.id].some((id) => (
+                      id != null && [guard.id, guard.guardId].some((guardId) => String(id) === String(guardId))
+                    ))
+                  ));
+                  const lat = Number(location?.latitude);
+                  const lng = Number(location?.longitude);
 
                   return (
-                  <React.Fragment key={guard.id}>
+                  <React.Fragment key={`${guard.id}:${lat}:${lng}`}>
                     <Circle
                       center={[lat, lng]}
-                      radius={Math.max(18, Number.parseFloat(guard.gpsAccuracy) || 25)}
+                      radius={Math.max(18, Number(location?.accuracy) || 25)}
                       pathOptions={{
                         color: guard.status === 'Emergency' ? '#fb7185' : '#38bdf8',
                         fillColor: guard.status === 'Emergency' ? '#fb7185' : '#38bdf8',
@@ -206,6 +220,14 @@ export default function Dashboard() {
                           <div className="flex justify-between">
                             <span className="text-slate-400">Status:</span>
                             <span className="font-semibold text-emerald-400">{guard.status}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">GPS accuracy:</span>
+                            <span className="font-semibold text-white">{location?.accuracy == null ? 'Unknown' : `${Number(location.accuracy).toFixed(1)}m`}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Walking steps:</span>
+                            <span className="font-semibold text-white">{location?.stepCounterAvailable ? Number(location.walkingSteps || 0).toLocaleString() : 'Unavailable'}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Battery:</span>

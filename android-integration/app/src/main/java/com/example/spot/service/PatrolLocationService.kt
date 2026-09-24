@@ -8,8 +8,13 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.location.Location
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
@@ -39,6 +44,37 @@ import com.google.firebase.firestore.SetOptions
  * while the screen is off, and while S.P.O.T. is temporarily in background.
  */
 class PatrolLocationService : Service() {
+
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var sensorManager: SensorManager? = null
+    private var stepSensor: Sensor? = null
+    private var stepCounterAvailable = false
+    private var stepBaseline: Float? = null
+    private var walkingSteps = 0L
+    private var latestLocation: Location? = null
+    private var latestGpsTimestamp: Timestamp? = null
+    private var heartbeatStarted = false
+
+    private val heartbeatRunnable = object : Runnable {
+        override fun run() {
+            publishLivePatrolUpdate()
+            mainHandler.postDelayed(this, LIVE_UPDATE_INTERVAL_MS)
+        }
+    }
+
+    private val stepListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            val total = event.values.firstOrNull() ?: return
+            val previousBaseline = stepBaseline
+            if (previousBaseline == null || total < previousBaseline) {
+                stepBaseline = total
+                trackingPrefs.edit().putFloat(KEY_STEP_BASELINE, total).apply()
+            }
+            walkingSteps = ((total - (stepBaseline ?: total)).toLong()).coerceAtLeast(0L)
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+    }
 
     private val db by lazy { FirebaseFirestore.getInstance() }
     private val auth by lazy { FirebaseAuth.getInstance() }
@@ -78,6 +114,9 @@ class PatrolLocationService : Service() {
         fusedLocationClient =
             LocationServices.getFusedLocationProviderClient(this)
 
+        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
+        stepSensor = sensorManager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+
         createNotificationChannel()
     }
 
@@ -112,6 +151,13 @@ class PatrolLocationService : Service() {
             }
 
             ACTION_START -> {
+                val requestedPatrolLogId = intent.getStringExtra(EXTRA_PATROL_LOG_ID)?.trim().orEmpty()
+                val savedPatrolLogId = trackingPrefs.getString(KEY_PATROL_LOG_ID, "").orEmpty()
+                if (requestedPatrolLogId.isNotBlank() && requestedPatrolLogId != savedPatrolLogId) {
+                    trackingPrefs.edit().remove(KEY_STEP_BASELINE).apply()
+                    stepBaseline = null
+                    walkingSteps = 0L
+                }
                 authUid =
                     auth.currentUser?.uid
                         ?.trim()
@@ -183,6 +229,8 @@ class PatrolLocationService : Service() {
         )
 
         markTrackingStarted()
+        startStepCounter()
+        startHeartbeat()
         startLocationUpdates()
 
         return START_STICKY
@@ -191,6 +239,8 @@ class PatrolLocationService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
+        stopHeartbeat()
+        sensorManager?.unregisterListener(stepListener)
         stopLocationUpdates()
         super.onDestroy()
     }
@@ -273,65 +323,74 @@ class PatrolLocationService : Service() {
             return
         }
 
-        val latestLocation =
-            hashMapOf<String, Any?>(
-                "guardId" to authUid,
-                "humanGuardId" to humanGuardId,
-                "guardName" to guardName,
-
-                "siteId" to siteId,
-                "siteName" to siteName,
-                "clientId" to clientId,
-
-                "patrolId" to patrolLogId,
-                "patrolLogId" to patrolLogId,
-                "patrolTime" to patrolTime,
-
-                "latitude" to location.latitude,
-                "longitude" to location.longitude,
-
-                // Compatibility aliases for existing web code.
-                "lat" to location.latitude,
-                "lng" to location.longitude,
-                "gpsLat" to location.latitude,
-                "gpsLng" to location.longitude,
-
-                "accuracy" to
-                    if (location.hasAccuracy()) {
-                        location.accuracy.toDouble()
-                    } else {
-                        null
-                    },
-
-                "speed" to
-                    if (location.hasSpeed()) {
-                        location.speed.toDouble()
-                    } else {
-                        0.0
-                    },
-
-                "bearing" to
-                    if (location.hasBearing()) {
-                        location.bearing.toDouble()
-                    } else {
-                        0.0
-                    },
-
-                "tracking" to true,
-                "source" to "android-patrol-gps",
-
-                "deviceTimestamp" to Timestamp.now(),
-                "updatedAt" to FieldValue.serverTimestamp()
-            )
-
-        db.collection("guardLocations")
-            .document(authUid)
-            .set(
-                latestLocation,
-                SetOptions.merge()
-            )
-
+        latestLocation = Location(location)
+        latestGpsTimestamp = Timestamp.now()
         maybeSaveHistoryPoint(location)
+    }
+
+    private fun startStepCounter() {
+        val sensor = stepSensor
+        val hasPermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+        stepBaseline = if (trackingPrefs.contains(KEY_STEP_BASELINE)) trackingPrefs.getFloat(KEY_STEP_BASELINE, 0f) else null
+        if (sensor == null || !hasPermission) {
+            stepCounterAvailable = false
+            return
+        }
+        stepCounterAvailable = try {
+            sensorManager?.registerListener(stepListener, sensor, SensorManager.SENSOR_DELAY_NORMAL) == true
+        } catch (_: SecurityException) {
+            false
+        }
+    }
+
+    private fun startHeartbeat() {
+        if (heartbeatStarted) return
+        heartbeatStarted = true
+        mainHandler.removeCallbacks(heartbeatRunnable)
+        mainHandler.post(heartbeatRunnable)
+    }
+
+    private fun stopHeartbeat() {
+        heartbeatStarted = false
+        mainHandler.removeCallbacks(heartbeatRunnable)
+    }
+
+    private fun publishLivePatrolUpdate() {
+        if (authUid.isBlank() || patrolLogId.isBlank()) return
+        val location = latestLocation
+        val patch = hashMapOf<String, Any?>(
+            "guardId" to authUid,
+            "humanGuardId" to humanGuardId,
+            "guardName" to guardName,
+            "siteId" to siteId,
+            "siteName" to siteName,
+            "clientId" to clientId,
+            "patrolId" to patrolLogId,
+            "patrolLogId" to patrolLogId,
+            "patrolTime" to patrolTime,
+            "walkingSteps" to walkingSteps,
+            "stepCounterAvailable" to stepCounterAvailable,
+            "telemetryIntervalSeconds" to 5,
+            "tracking" to true,
+            "gpsAvailable" to (location != null),
+            "source" to "android-patrol-gps",
+            "telemetryTimestamp" to Timestamp.now(),
+            "updatedAt" to FieldValue.serverTimestamp()
+        )
+        if (location != null) {
+            patch["latitude"] = location.latitude
+            patch["longitude"] = location.longitude
+            patch["lat"] = location.latitude
+            patch["lng"] = location.longitude
+            patch["gpsLat"] = location.latitude
+            patch["gpsLng"] = location.longitude
+            patch["accuracy"] = if (location.hasAccuracy()) location.accuracy.toDouble() else null
+            patch["speed"] = if (location.hasSpeed()) location.speed.toDouble() else 0.0
+            patch["bearing"] = if (location.hasBearing()) location.bearing.toDouble() else 0.0
+            patch["gpsTimestamp"] = latestGpsTimestamp
+        }
+        db.collection("guardLocations").document(authUid).set(patch, SetOptions.merge())
     }
 
     private fun maybeSaveHistoryPoint(
@@ -430,6 +489,10 @@ class PatrolLocationService : Service() {
                 "patrolLogId" to patrolLogId,
                 "patrolTime" to patrolTime,
                 "tracking" to true,
+                "gpsAvailable" to false,
+                "walkingSteps" to 0L,
+                "stepCounterAvailable" to false,
+                "telemetryIntervalSeconds" to 5,
                 "source" to "android-patrol-gps",
                 "trackingStartedAt" to FieldValue.serverTimestamp(),
                 "updatedAt" to FieldValue.serverTimestamp()
@@ -474,6 +537,8 @@ class PatrolLocationService : Service() {
                 .set(
                     mapOf(
                         "tracking" to false,
+                        "gpsAvailable" to false,
+                        "stepCounterAvailable" to false,
                         "patrolId" to null,
                         "patrolLogId" to null,
                         "trackingStoppedAt" to
@@ -717,6 +782,9 @@ class PatrolLocationService : Service() {
         private const val KEY_PATROL_TIME =
             "PATROL_TIME"
 
+        private const val KEY_STEP_BASELINE =
+            "STEP_BASELINE"
+
         private const val CHANNEL_ID =
             "spot_patrol_gps"
 
@@ -724,7 +792,7 @@ class PatrolLocationService : Service() {
             4107
 
         private const val LIVE_UPDATE_INTERVAL_MS =
-            10_000L
+            5_000L
 
         private const val MIN_UPDATE_INTERVAL_MS =
             5_000L

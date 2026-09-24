@@ -7,6 +7,7 @@ import { subscribeCollection, updateItem, addItem, removeItem, setItem, uploadDa
 import { useAuth } from './AuthContext';
 
 const SpotContext = createContext();
+const LIVE_LOCATION_STALE_MS = 45 * 1000;
 
 function getShiftTimes(shift) {
   const normalized = String(shift || '');
@@ -101,6 +102,7 @@ export function SpotProvider({ children }) {
   const [guardLocations, setGuardLocations] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
   const [schedules, setSchedules] = useState([]);
+  const [locationNowMs, setLocationNowMs] = useState(() => Date.now());
 
   // Database Connection Indicator
   const [dbConnected, setDbConnected] = useState(Boolean(hasFirebaseConfig && db));
@@ -146,9 +148,32 @@ export function SpotProvider({ children }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setLocationNowMs(Date.now()), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // -------------------------------------------------------------
   // Real-time Cloud Firestore Subscriptions
   // -------------------------------------------------------------
+  useEffect(() => {
+    if (guardLocations.length === 0) return;
+
+    setGuards((current) => current.map((guard) => {
+      const location = guardLocations.find((item) => (
+        String(item.guardId || item.id) === String(guard.id)
+      ));
+
+      if (!location) return guard;
+
+      const isStale = !location.updatedAtMs || locationNowMs - location.updatedAtMs > LIVE_LOCATION_STALE_MS;
+      return {
+        ...guard,
+        status: location.tracking && !isStale ? 'On Patrol' : (isStale ? 'Offline' : guard.status)
+      };
+    }));
+  }, [guardLocations, locationNowMs]);
+
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
     const isClient = role === 'client';
@@ -346,6 +371,8 @@ export function SpotProvider({ children }) {
         const updatedAtDate =
           location.updatedAt?.toDate
             ? location.updatedAt.toDate()
+            : location.telemetryTimestamp?.toDate
+            ? location.telemetryTimestamp.toDate()
             : location.deviceTimestamp?.toDate
             ? location.deviceTimestamp.toDate()
             : location.timestamp?.toDate
@@ -354,6 +381,11 @@ export function SpotProvider({ children }) {
 
         const latitude = Number(location.latitude ?? location.lat ?? location.gpsLat);
         const longitude = Number(location.longitude ?? location.lng ?? location.gpsLng);
+        const updatedAtMs = updatedAtDate?.getTime() || 0;
+        const gpsDate = location.gpsTimestamp?.toDate
+          ? location.gpsTimestamp.toDate()
+          : null;
+        const gpsTimestampMs = gpsDate?.getTime() || 0;
 
         return {
           ...location,
@@ -369,9 +401,17 @@ export function SpotProvider({ children }) {
           longitude: Number.isFinite(longitude) ? longitude : null,
           accuracy: location.accuracy !== undefined && location.accuracy !== null ? Number(location.accuracy) : null,
           tracking: Boolean(location.tracking),
-          updatedAt: location.updatedAt || location.deviceTimestamp || location.timestamp || null,
+          walkingSteps: Math.max(0, Number(location.walkingSteps) || 0),
+          stepCounterAvailable: location.stepCounterAvailable === true,
+          gpsAvailable: location.gpsAvailable === true,
+          gpsTimestamp: location.gpsTimestamp || null,
+          telemetryTimestamp: location.telemetryTimestamp || null,
+          updatedAt: location.updatedAt || location.telemetryTimestamp || location.deviceTimestamp || location.timestamp || null,
           updatedAtDate,
-          updatedAtMs: updatedAtDate?.getTime() || 0,
+          updatedAtMs,
+          isStale: !updatedAtMs || locationNowMs - updatedAtMs > LIVE_LOCATION_STALE_MS,
+          gpsTimestampMs,
+          gpsIsStale: !gpsTimestampMs || locationNowMs - gpsTimestampMs > LIVE_LOCATION_STALE_MS,
         };
       });
 
@@ -399,7 +439,7 @@ export function SpotProvider({ children }) {
             : guard.gpsAccuracy,
           networkSignal: latest.networkSignal || latest.signalStrength || guard.networkSignal,
           lastLocationUpdate: latest.updatedAt || guard.lastLocationUpdate,
-          status: latest.tracking ? 'On Patrol' : (latest.status || guard.status)
+          status: latest.tracking && !latest.isStale ? 'On Patrol' : (latest.isStale ? 'Offline' : (latest.status || guard.status))
         };
       }));
     });
