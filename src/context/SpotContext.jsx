@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { where } from 'firebase/firestore';
+import { getDownloadURL, ref as storageRef } from 'firebase/storage';
 import { createUserWithEmailAndPassword, deleteUser } from 'firebase/auth';
-import { db, hasFirebaseConfig, createIsolatedAuth } from '../lib/firebase';
+import { db, hasFirebaseConfig, createIsolatedAuth, storage } from '../lib/firebase';
 import { subscribeCollection, updateItem, addItem, removeItem, setItem, uploadDataUrl } from '../lib/dataSource';
 import { useAuth } from './AuthContext';
 
 const SpotContext = createContext();
+const LIVE_LOCATION_STALE_MS = 45 * 1000;
 
 function getShiftTimes(shift) {
   const normalized = String(shift || '');
@@ -36,6 +38,27 @@ function getAuthErrorMessage(error) {
     default:
       return error?.message || 'Could not create the guard login.';
   }
+}
+
+function getIncidentPhotoUrls(doc) {
+  const photoFields = [doc.photoUrls, doc.photoPaths, doc.photoUrl, doc.evidencePhotos, doc.evidencePhoto, doc.imageUrls, doc.imageUrl, doc.photos, doc.images];
+  return photoFields
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .map((value) => typeof value === 'object' && value !== null ? (value.url || value.downloadUrl || value.path || '') : value)
+    .filter((value) => typeof value === 'string' && value.trim())
+    .map((value) => value.trim())
+    .filter((value, index, values) => values.indexOf(value) === index);
+}
+
+async function resolveIncidentPhotoUrls(photoUrls) {
+  return Promise.all(photoUrls.map(async (photoUrl) => {
+    if (/^(https?:|data:|blob:)/i.test(photoUrl) || !storage) return photoUrl;
+    try {
+      return await getDownloadURL(storageRef(storage, photoUrl));
+    } catch (_) {
+      return photoUrl;
+    }
+  }));
 }
 
 function playChime() {
@@ -79,6 +102,7 @@ export function SpotProvider({ children }) {
   const [guardLocations, setGuardLocations] = useState([]);
   const [checkpoints, setCheckpoints] = useState([]);
   const [schedules, setSchedules] = useState([]);
+  const [locationNowMs, setLocationNowMs] = useState(() => Date.now());
 
   // Database Connection Indicator
   const [dbConnected, setDbConnected] = useState(Boolean(hasFirebaseConfig && db));
@@ -124,9 +148,32 @@ export function SpotProvider({ children }) {
     setSidebarCollapsed((prev) => !prev);
   };
 
+  useEffect(() => {
+    const timer = window.setInterval(() => setLocationNowMs(Date.now()), 5000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   // -------------------------------------------------------------
   // Real-time Cloud Firestore Subscriptions
   // -------------------------------------------------------------
+  useEffect(() => {
+    if (guardLocations.length === 0) return;
+
+    setGuards((current) => current.map((guard) => {
+      const location = guardLocations.find((item) => (
+        String(item.guardId || item.id) === String(guard.id)
+      ));
+
+      if (!location) return guard;
+
+      const isStale = !location.updatedAtMs || locationNowMs - location.updatedAtMs > LIVE_LOCATION_STALE_MS;
+      return {
+        ...guard,
+        status: location.tracking && !isStale ? 'On Patrol' : (isStale ? 'Offline' : guard.status)
+      };
+    }));
+  }, [guardLocations, locationNowMs]);
+
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
     const isClient = role === 'client';
@@ -137,8 +184,11 @@ export function SpotProvider({ children }) {
     };
 
     // 1. Incidents
-    const unsubIncidents = subscribeForRole('incidents', (fsIncidents) => {
-      const formatted = (fsIncidents || []).map((doc) => ({
+    const unsubIncidents = subscribeForRole('incidents', async (fsIncidents) => {
+      const formatted = await Promise.all((fsIncidents || []).map(async (doc) => {
+        const photoUrls = await resolveIncidentPhotoUrls(getIncidentPhotoUrls(doc));
+        return {
+        photoUrls,
         id: doc.id,
         title: doc.title || doc.type || 'Field Incident',
         priority: doc.priority || 'Medium',
@@ -150,11 +200,11 @@ export function SpotProvider({ children }) {
         client: doc.client || '',
         timestamp: doc.createdAt?.toDate ? doc.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Recently',
         status: doc.status || 'Investigating',
-        photoUrls: Array.isArray(doc.photoUrls) ? doc.photoUrls.filter(Boolean) : [],
-        photoCount: Number(doc.photoCount) || (Array.isArray(doc.photoUrls) ? doc.photoUrls.length : 0),
-        evidencePhoto: doc.evidencePhoto || doc.photoUrl || '',
+        photoCount: Number(doc.photoCount) || photoUrls.length,
+        evidencePhoto: photoUrls[0] || '',
         description: doc.description || 'Reported incident.',
         actionsTaken: doc.actionsTaken || 'Pending review.'
+        };
       }));
       setIncidents(formatted);
     });
@@ -321,6 +371,8 @@ export function SpotProvider({ children }) {
         const updatedAtDate =
           location.updatedAt?.toDate
             ? location.updatedAt.toDate()
+            : location.telemetryTimestamp?.toDate
+            ? location.telemetryTimestamp.toDate()
             : location.deviceTimestamp?.toDate
             ? location.deviceTimestamp.toDate()
             : location.timestamp?.toDate
@@ -329,6 +381,11 @@ export function SpotProvider({ children }) {
 
         const latitude = Number(location.latitude ?? location.lat ?? location.gpsLat);
         const longitude = Number(location.longitude ?? location.lng ?? location.gpsLng);
+        const updatedAtMs = updatedAtDate?.getTime() || 0;
+        const gpsDate = location.gpsTimestamp?.toDate
+          ? location.gpsTimestamp.toDate()
+          : null;
+        const gpsTimestampMs = gpsDate?.getTime() || 0;
 
         return {
           ...location,
@@ -344,9 +401,17 @@ export function SpotProvider({ children }) {
           longitude: Number.isFinite(longitude) ? longitude : null,
           accuracy: location.accuracy !== undefined && location.accuracy !== null ? Number(location.accuracy) : null,
           tracking: Boolean(location.tracking),
-          updatedAt: location.updatedAt || location.deviceTimestamp || location.timestamp || null,
+          walkingSteps: Math.max(0, Number(location.walkingSteps) || 0),
+          stepCounterAvailable: location.stepCounterAvailable === true,
+          gpsAvailable: location.gpsAvailable === true,
+          gpsTimestamp: location.gpsTimestamp || null,
+          telemetryTimestamp: location.telemetryTimestamp || null,
+          updatedAt: location.updatedAt || location.telemetryTimestamp || location.deviceTimestamp || location.timestamp || null,
           updatedAtDate,
-          updatedAtMs: updatedAtDate?.getTime() || 0,
+          updatedAtMs,
+          isStale: !updatedAtMs || locationNowMs - updatedAtMs > LIVE_LOCATION_STALE_MS,
+          gpsTimestampMs,
+          gpsIsStale: !gpsTimestampMs || locationNowMs - gpsTimestampMs > LIVE_LOCATION_STALE_MS,
         };
       });
 
@@ -374,7 +439,7 @@ export function SpotProvider({ children }) {
             : guard.gpsAccuracy,
           networkSignal: latest.networkSignal || latest.signalStrength || guard.networkSignal,
           lastLocationUpdate: latest.updatedAt || guard.lastLocationUpdate,
-          status: latest.tracking ? 'On Patrol' : (latest.status || guard.status)
+          status: latest.tracking && !latest.isStale ? 'On Patrol' : (latest.isStale ? 'Offline' : (latest.status || guard.status))
         };
       }));
     });
