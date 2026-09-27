@@ -3,6 +3,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import Layout from '../components/Layout';
 import GuardAvatar from '../components/GuardAvatar';
 import { useSpot } from '../context/SpotContext';
+import SiteAttendance from '../components/SiteAttendance';
 import {
   Building2,
   Users,
@@ -1273,6 +1274,7 @@ export default function Sites() {
     clients = [],
     patrols = [],
     incidents = [],
+    attendance = [],
     addSite,
     updateSite,
     deleteSite,
@@ -1283,6 +1285,34 @@ export default function Sites() {
     selectedSite,
     setSelectedSite
   ] = useState(null);
+  // Count unique guards with an open shift recorded at this site.
+  // Do not filter by date or internet status: overnight/offline shifts stay open.
+  const onDutyGuardCount = useMemo(() => {
+    const siteId = String(selectedSite?.id ?? '').trim();
+    if (!siteId) return 0;
+
+    const guardIds = new Set();
+
+    attendance.forEach((record) => {
+      const guardId = String(record.guardId ?? '').trim();
+      const matchesSite = String(record.siteId ?? '').trim() === siteId;
+      const hasTimeOut =
+        record.timeOutAt != null ||
+        record.timeOutMs != null ||
+        String(record.timeOut ?? '').trim() !== '';
+
+      if (
+        guardId &&
+        matchesSite &&
+        record.status === 'ON_DUTY' &&
+        !hasTimeOut
+      ) {
+        guardIds.add(guardId);
+      }
+    });
+
+    return guardIds.size;
+  }, [attendance, selectedSite?.id]);
 
   const [
     showAdd,
@@ -3587,6 +3617,8 @@ export default function Sites() {
 
               <div className="flex items-center gap-2">
 
+                <SiteAttendance key={selectedSite.id} site={selectedSite} />
+
                 <button
                   type="button"
                   onClick={() =>
@@ -3742,14 +3774,20 @@ export default function Sites() {
                   </div>
                 </button>
 
-                <div className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-center">
+                <div
+                  className="p-3 rounded-xl bg-slate-900/60 border border-slate-800 text-center"
+                  title="Unique guards with an open attendance shift at this site, including overnight shifts. This does not indicate internet connectivity."
+                >
                   <div className="text-[10px] text-slate-400">
-                    Routes
+                    On Duty
                   </div>
 
-                  <div className="text-xl font-bold mt-0.5 text-blue-400">
-                    {selectedSite.routesCount ||
-                      0}
+                  <div className="text-xl font-bold mt-0.5 text-emerald-400" aria-live="polite">
+                    {onDutyGuardCount}
+                  </div>
+
+                  <div className="mt-1 text-[9px] font-semibold text-emerald-400">
+                    Clocked in
                   </div>
                 </div>
               </div>

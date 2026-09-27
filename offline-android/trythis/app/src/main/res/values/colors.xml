@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- S.P.O.T web-matched dark design system -->
+    <color name="primary">#2563EB</color>
+    <color name="primaryDark">#1D4ED8</color>
+    <color name="onPrimary">#FFFFFF</color>
+    <color name="primaryContainer">#172554</color>
+    <color name="onPrimaryContainer">#DBEAFE</color>
+
+    <color name="secondary">#94A3B8</color>
+    <color name="onSecondary">#0F172A</color>
+    <color name="secondaryContainer">#263449</color>
+    <color name="onSecondaryContainer">#E2E8F0</color>
+
+    <!-- Status colors, aligned with the supervisor web console -->
+    <color name="error">#EF4444</color>
+    <color name="onError">#FFFFFF</color>
+    <color name="errorContainer">#3A1D27</color>
+    <color name="success">#22C55E</color>
+    <color name="onSuccess">#052E16</color>
+    <color name="successContainer">#123524</color>
+    <color name="warning">#F59E0B</color>
+    <color name="warningContainer">#3A2B11</color>
+
+    <!-- Dark navy surfaces used by the web application -->
+    <color name="background">#0F172A</color>
+    <color name="onBackground">#F8FAFC</color>
+    <color name="surface">#1E293B</color>
+    <color name="surfaceRaised">#243248</color>
+    <color name="surfaceVariant">#273449</color>
+    <color name="surfaceDeep">#111827</color>
+    <color name="onSurface">#F8FAFC</color>
+    <color name="onSurfaceVariant">#94A3B8</color>
+    <color name="outline">#475569</color>
+    <color name="outlineSoft">#334155</color>
+    <color name="divider">#2A394E</color>
+
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
+</resources>

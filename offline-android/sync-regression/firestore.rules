@@ -1,0 +1,572 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================
+    // HELPERS
+    // =========================
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function hasUserProfile() {
+      return isAuthed() && exists(
+        /databases/$(database)/documents/users/$(request.auth.uid)
+      );
+    }
+
+    function isSelf(uid) {
+      return isAuthed() && request.auth.uid == uid;
+    }
+
+    function isSuperAdmin() {
+      return hasUserProfile() &&
+        userDoc().data.role in [
+          'superadmin',
+          'Superadmin',
+          'SUPERADMIN',
+          'super admin',
+          'Super Admin',
+          'supervisor',
+          'Supervisor',
+          'SUPERVISOR',
+          'Supervisor Admin',
+          'supervisor admin',
+          'SUPERVISOR ADMIN',
+          'supervisor_admin',
+          'Supervisor Command Officer',
+          'supervisor command officer',
+          'SUPERVISOR COMMAND OFFICER'
+        ];
+    }
+
+    function isAdmin() {
+      return hasUserProfile() &&
+        userDoc().data.role in [
+          'admin',
+          'Admin',
+          'ADMIN'
+        ];
+    }
+
+    function isOperationsManager() {
+      return isSuperAdmin() || isAdmin();
+    }
+
+    function isClient() {
+      return hasUserProfile() &&
+        userDoc().data.role in [
+          'client',
+          'Client',
+          'CLIENT'
+        ];
+    }
+
+    function isGuard() {
+      return hasUserProfile() &&
+        userDoc().data.role in [
+          'guard',
+          'Guard',
+          'GUARD'
+        ];
+    }
+
+    function ownsClientResource() {
+      return isClient() &&
+        resource.data.clientId == userDoc().data.clientId;
+    }
+
+    function ownsClientRequest() {
+      return isClient() &&
+        request.resource.data.clientId == userDoc().data.clientId;
+    }
+
+    function guardAssignedToSite(siteId) {
+      return isGuard() &&
+        userDoc().data.assignedSiteId == siteId;
+    }
+
+    // =========================
+    // USERS
+    // =========================
+
+    match /users/{uid} {
+      allow read: if
+        isOperationsManager() ||
+        isSelf(uid) ||
+        (
+          isClient() &&
+          resource.data.clientId == userDoc().data.clientId
+        );
+
+      allow create: if isOperationsManager();
+
+      allow update: if
+        isOperationsManager() ||
+        (
+          isSelf(uid) &&
+          request.resource.data.role == resource.data.role
+        );
+
+      allow delete: if isOperationsManager();
+    }
+
+    // =========================
+    // DEVICES
+    // =========================
+
+    match /devices/{deviceId} {
+      allow read: if isAuthed();
+      allow create, update: if isAuthed();
+      allow delete: if isOperationsManager();
+    }
+
+    // =========================
+    // SITES
+    // =========================
+
+    match /sites/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        guardAssignedToSite(id);
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // CLIENT SITES
+    // =========================
+
+    match /client_sites/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        guardAssignedToSite(id);
+
+      allow create, update, delete: if isOperationsManager();
+
+      match /guards/{guardId} {
+        allow read: if
+          isOperationsManager() ||
+          isSelf(guardId);
+
+        allow create, update, delete: if isOperationsManager();
+      }
+
+      match /locations/{locationId} {
+        allow read: if
+          isOperationsManager() ||
+          guardAssignedToSite(id);
+
+        allow create, update, delete: if isOperationsManager();
+      }
+    }
+
+    // =========================
+    // CLIENTS
+    // =========================
+
+    match /clients/{id} {
+      allow read: if
+        isOperationsManager() ||
+        (
+          isClient() &&
+          userDoc().data.clientId == id
+        );
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // SETTINGS
+    // =========================
+
+    match /settings/{id} {
+      allow read, write: if isSuperAdmin();
+    }
+
+    // =========================
+    // CHECKPOINTS / QR
+    // =========================
+
+    match /checkpoints/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        guardAssignedToSite(resource.data.siteId);
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // ROUTES
+    // =========================
+
+    match /routes/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource();
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // GENERAL SCHEDULES
+    // =========================
+
+    match /schedules/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isGuard() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // LEGACY SCHEDULE TEMPLATES
+    // =========================
+
+    match /guard_schedules_template/{id} {
+      allow read: if isOperationsManager();
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // ROVING / PATROL SCHEDULES
+    // =========================
+
+    match /roving_assignments/{assignmentId} {
+      // Android queries by siteId, then finds the guard's assignment.
+      // Allow reading assignments within the guard's assigned site.
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        guardAssignedToSite(resource.data.siteId) ||
+        (
+          isGuard() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // CURRENT ANDROID PATROL LOGS
+    // =========================
+
+    match /patrol_logs/{id} {
+      // Schedule setup reads a document before creating it.
+      // A nonexistent document has no owner field and returns no data.
+      allow get: if
+        (
+          isAuthed() &&
+          !exists(
+            /databases/$(database)/documents/patrol_logs/$(id)
+          )
+        ) ||
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      // Guard queries must filter by their Firebase Authentication UID.
+      allow list: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          request.resource.data.guardId == request.auth.uid
+        );
+
+      // Supports starting patrols, checkpoint progress and GPS updates.
+      // Guards cannot change an existing record's owner or site.
+      allow update: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid &&
+          request.resource.data.guardId == resource.data.guardId &&
+          request.resource.data.siteId == resource.data.siteId
+        );
+
+      allow delete: if isOperationsManager();
+    }
+
+    // =========================
+    // LEGACY PATROL LOGS
+    // =========================
+
+    match /patrolLogs/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isAuthed() &&
+        request.resource.data.guardId == request.auth.uid;
+
+      allow update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // LEGACY PATROL SCHEDULES
+    // =========================
+
+    match /patrol_schedules/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isGuard() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // ATTENDANCE
+    // =========================
+
+    match /attendance/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          request.resource.data.guardId == request.auth.uid
+        );
+
+      allow update: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow delete: if isOperationsManager();
+    }
+
+    // =========================
+    // FACE PROFILES
+    // =========================
+
+    match /faceProfiles/{guardId} {
+      allow read: if
+        isOperationsManager() ||
+        isSelf(guardId) ||
+        (
+          isAuthed() &&
+          (
+            userDoc().data.guardId == guardId ||
+            userDoc().data.id == guardId
+          )
+        );
+
+      allow create, update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // CHECKPOINT SCAN LOGS
+    // =========================
+
+    match /checkpoint_logs/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isAuthed() &&
+        request.resource.data.guardId == request.auth.uid;
+
+      allow update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // LIVE GUARD LOCATION
+    // =========================
+
+    match /guardLocations/{guardUid} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        isSelf(guardUid);
+
+      allow create, update: if
+        isAuthed() &&
+        request.auth.uid == guardUid &&
+        request.resource.data.guardId == request.auth.uid;
+
+      allow delete: if
+        isOperationsManager() ||
+        isSelf(guardUid);
+    }
+
+    // =========================
+    // GPS ROUTE HISTORY
+    // =========================
+
+    match /locationHistory/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isAuthed() &&
+        request.resource.data.guardId == request.auth.uid;
+
+      allow update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // TELEMATICS
+    // =========================
+
+    match /telematics/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isAuthed() &&
+        request.resource.data.guardId == request.auth.uid;
+
+      allow update: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow delete: if isOperationsManager();
+    }
+
+    // =========================
+    // GUARD TRANSFER HISTORY
+    // =========================
+
+    match /guard_transfer_history/{id} {
+      allow read: if isOperationsManager();
+      allow create: if isOperationsManager();
+      allow update, delete: if false;
+    }
+
+    // =========================
+    // APPROVAL REQUESTS
+    // =========================
+
+    match /approvalRequests/{id} {
+      allow read, write: if isOperationsManager();
+    }
+
+    // =========================
+    // INCIDENTS
+    // =========================
+
+    match /incidents/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        (
+          isAuthed() &&
+          resource.data.guardId == request.auth.uid
+        );
+
+      allow create: if
+        isOperationsManager() ||
+        (
+          isAuthed() &&
+          request.resource.data.guardId == request.auth.uid
+        );
+
+      allow update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // REPORTS
+    // =========================
+
+    match /reports/{id} {
+      allow read: if
+        isOperationsManager() ||
+        ownsClientResource() ||
+        isAuthed();
+
+      allow create: if isAuthed();
+      allow update, delete: if isOperationsManager();
+    }
+
+    // =========================
+    // AUDIT LOGS
+    // =========================
+
+    match /auditLogs/{id} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update, delete: if false;
+    }
+
+    // =========================
+    // ADMIN LOGS
+    // =========================
+
+    match /adminLogs/{id} {
+      allow read: if isOperationsManager();
+      allow create: if isAuthed();
+      allow update, delete: if false;
+    }
+
+    // =========================
+    // DEFAULT DENY
+    // =========================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

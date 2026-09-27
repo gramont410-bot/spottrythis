@@ -1159,21 +1159,188 @@ export function SpotProvider({ children }) {
     }, { staffOnly: true });
 
     // 8. Attendance (from Android app)
-    const unsubAttendance = subscribeForRole('attendance', (fsDocs) => {
-      const formatted = (fsDocs || []).map((doc) => ({
-        id: doc.id,
-        guardId: doc.guardId || doc.userId || '',
-        guardName: doc.guardName || doc.name || 'Guard',
-        siteId: doc.siteId || '',
-        siteName: doc.siteName || 'Site',
-        timeIn: doc.timeIn?.toDate ? doc.timeIn.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (doc.timeIn || ''),
-        timeOut: doc.timeOut?.toDate ? doc.timeOut.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : (doc.timeOut || ''),
-        date: doc.date || (doc.timestamp?.toDate ? doc.timestamp.toDate().toLocaleDateString() : ''),
-        status: doc.status || 'Present',
-        faceVerified: Boolean(doc.faceVerified),
-      }));
-      setAttendance(formatted);
-    }, { staffOnly: true });
+    const unsubAttendance = subscribeForRole(
+      'attendance',
+      (fsDocs) => {
+        const attendanceTimeZone = 'Asia/Manila';
+
+        // Accept Firestore timestamps, Date objects, and ISO timestamps.
+        // Do not guess dates from legacy time-only strings.
+        const toAttendanceDate = (value) => {
+          if (!value) return null;
+
+          let parsed = null;
+
+          if (typeof value.toDate === 'function') {
+            parsed = value.toDate();
+          } else if (value instanceof Date) {
+            parsed = value;
+          } else if (
+            typeof value === 'object' &&
+            typeof value.seconds === 'number'
+          ) {
+            parsed = new Date(
+              value.seconds * 1000 +
+                (value.nanoseconds || 0) / 1000000
+            );
+          } else if (
+            typeof value === 'string' &&
+            /^\d{4}-\d{2}-\d{2}T/.test(value)
+          ) {
+            parsed = new Date(value);
+          }
+
+          return parsed && Number.isFinite(parsed.getTime())
+            ? parsed
+            : null;
+        };
+
+        const formatTime = (value) =>
+          new Intl.DateTimeFormat('en-PH', {
+            timeZone: attendanceTimeZone,
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          }).format(value);
+
+        const formatDateKey = (value) => {
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: attendanceTimeZone,
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).formatToParts(value);
+
+          const getPart = (type) =>
+            parts.find((part) => part.type === type)?.value || '';
+
+          return `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+        };
+
+        const formatted = (fsDocs || []).map((doc) => {
+          const timeInDate =
+            toAttendanceDate(doc.timeInAt) ||
+            toAttendanceDate(doc.timeIn);
+
+          const timeOutDate =
+            toAttendanceDate(doc.timeOutAt) ||
+            toAttendanceDate(doc.timeOut);
+
+          const legacyTimeIn =
+            typeof doc.timeIn === 'string' ? doc.timeIn : '';
+
+          const legacyTimeOut =
+            typeof doc.timeOut === 'string' ? doc.timeOut : '';
+
+          const timeIn = timeInDate
+            ? formatTime(timeInDate)
+            : legacyTimeIn;
+
+          const timeOut = timeOutDate
+            ? formatTime(timeOutDate)
+            : legacyTimeOut;
+
+          const status =
+            doc.status ||
+            (timeOut
+              ? 'SHIFT_ENDED'
+              : timeIn
+                ? 'ON_DUTY'
+                : 'NEEDS_REVIEW');
+
+          const isOnDuty =
+            status === 'ON_DUTY' && !timeOut;
+
+          // Only completed shifts with valid timestamps get a duration.
+          // Overnight shifts work because full dates are used.
+          const hasValidDuration =
+            status === 'SHIFT_ENDED' &&
+            timeInDate !== null &&
+            timeOutDate !== null &&
+            timeOutDate.getTime() >= timeInDate.getTime();
+
+          const totalMinutes = hasValidDuration
+            ? Math.floor(
+                (timeOutDate.getTime() - timeInDate.getTime()) /
+                  60000
+              )
+            : null;
+
+          const durationLabel =
+            totalMinutes !== null
+              ? `${Math.floor(totalMinutes / 60)}h ${
+                  totalMinutes % 60
+                }m`
+              : isOnDuty
+                ? 'On Duty'
+                : '—';
+
+          const loginFaceVerified =
+            doc.loginFaceVerified === true ||
+            doc.faceVerified === true;
+
+          const logoutFaceVerified =
+            doc.logoutFaceVerified === true;
+
+          return {
+            id: doc.id,
+            guardId: doc.guardId || doc.userId || '',
+            guardName: doc.guardName || doc.name || 'Guard',
+            siteId: doc.siteId || '',
+            siteName: doc.siteName || '',
+            clientId: doc.clientId || '',
+
+            date: timeInDate
+              ? formatDateKey(timeInDate)
+              : typeof doc.date === 'string'
+                ? doc.date
+                : '',
+
+            timeOutDate: timeOutDate
+              ? formatDateKey(timeOutDate)
+              : '',
+
+            timeIn,
+            timeOut,
+
+            // Retain the original server timestamps.
+            timeInAt: doc.timeInAt ?? null,
+            timeOutAt: doc.timeOutAt ?? null,
+
+            // Convenient values for sorting and report calculations.
+            timeInMs: timeInDate?.getTime() ?? null,
+            timeOutMs: timeOutDate?.getTime() ?? null,
+            totalMinutes,
+            totalHours:
+              totalMinutes !== null ? totalMinutes / 60 : null,
+            durationLabel,
+
+            status,
+            isOnDuty,
+            loginFaceVerified,
+            logoutFaceVerified,
+
+            // Compatibility with existing web-app consumers.
+            faceVerified: loginFaceVerified,
+
+            source: doc.source || '',
+            attendanceVersion: doc.attendanceVersion || 1,
+            timeZone: attendanceTimeZone,
+          };
+        });
+
+        formatted.sort((a, b) => {
+          const dateOrder = (b.date || '').localeCompare(a.date || '');
+
+          if (dateOrder !== 0) return dateOrder;
+
+          return (b.timeInMs ?? 0) - (a.timeInMs ?? 0);
+        });
+
+        setAttendance(formatted);
+      },
+      { staffOnly: true }
+    );
 
     // 9. Checkpoint logs (from Android app)
     const unsubCheckpointLogs = subscribeForRole('checkpoint_logs', (fsDocs) => {

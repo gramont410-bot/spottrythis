@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/background">
+<com.google.android.material.appbar.AppBarLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/background" app:elevation="0dp">
+<androidx.constraintlayout.widget.ConstraintLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:paddingHorizontal="20dp" android:paddingTop="20dp" android:paddingBottom="14dp">
+<LinearLayout android:id="@+id/headerText" android:layout_width="0dp" android:layout_height="wrap_content" android:orientation="vertical" app:layout_constraintStart_toStartOf="parent" app:layout_constraintEnd_toStartOf="@id/btnLogoutCard" app:layout_constraintTop_toTopOf="parent">
+<TextView android:id="@+id/tvSupervisorGreeting" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Good Morning," android:textColor="@color/secondary" android:textSize="13sp" android:textStyle="bold"/>
+<TextView android:id="@+id/tvSupervisorName" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp" android:ellipsize="end" android:maxLines="1" android:text="Administrator" android:textColor="@color/onBackground" android:textSize="24sp" android:textStyle="bold"/>
+</LinearLayout>
+<com.google.android.material.card.MaterialCardView android:id="@+id/btnLogoutCard" android:layout_width="46dp" android:layout_height="46dp" app:cardBackgroundColor="@color/surface" app:cardCornerRadius="14dp" app:cardElevation="0dp" app:strokeColor="@color/outlineSoft" app:strokeWidth="1dp" app:layout_constraintEnd_toEndOf="parent" app:layout_constraintTop_toTopOf="parent">
+<ImageButton android:id="@+id/btnLogout" android:layout_width="match_parent" android:layout_height="match_parent" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="Logout" android:padding="11dp" android:src="@android:drawable/ic_lock_power_off" app:tint="@color/error"/>
+</com.google.android.material.card.MaterialCardView>
+</androidx.constraintlayout.widget.ConstraintLayout>
+</com.google.android.material.appbar.AppBarLayout>
+<androidx.core.widget.NestedScrollView android:layout_width="match_parent" android:layout_height="match_parent" android:fillViewport="true" android:clipToPadding="false" app:layout_behavior="@string/appbar_scrolling_view_behavior">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:paddingHorizontal="20dp" android:paddingBottom="40dp">
+<com.google.android.material.card.MaterialCardView android:id="@+id/commandCenterCard" style="@style/Widget.SPOT.Card" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="16dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="18dp">
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:orientation="horizontal">
+<LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical">
+<TextView android:id="@+id/tvSystemStatusLabel" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="●  SYSTEM ONLINE" android:textColor="@color/success" android:textSize="10sp" android:textStyle="bold" android:letterSpacing="0.08"/>
+<TextView android:id="@+id/tvOverview" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="5dp" android:text="Operational Sites" android:textColor="@color/onSurface" android:textSize="21sp" android:textStyle="bold"/>
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="3dp" android:text="Keep deployments, guards and site activity in view." android:textColor="@color/onSurfaceVariant" android:textSize="11sp"/>
+</LinearLayout>
+<com.google.android.material.button.MaterialButton android:id="@+id/btnUiAddSite" style="@style/Widget.SPOT.Button.Primary" android:layout_width="wrap_content" android:layout_height="46dp" android:layout_marginStart="12dp" android:text="Add Site" android:textSize="11sp" app:icon="@android:drawable/ic_input_add" app:iconSize="16dp"/>
+</LinearLayout>
+</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
+<com.google.android.material.textfield.TextInputLayout android:id="@+id/searchBarLayout" style="@style/Widget.SPOT.TextInput" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="18dp" app:hintEnabled="false" app:startIconDrawable="@android:drawable/ic_menu_search">
+<com.google.android.material.textfield.TextInputEditText android:id="@+id/etSearchSite" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Search sites" android:inputType="text" android:textColor="@color/onSurface" android:textColorHint="@color/onSurfaceVariant" android:textSize="14sp"/>
+</com.google.android.material.textfield.TextInputLayout>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:layout_marginBottom="8dp">
+<TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ACTIVE DEPLOYMENTS" android:textColor="@color/secondary" android:textSize="11sp" android:textStyle="bold" android:letterSpacing="0.04"/>
+<com.google.android.material.button.MaterialButton android:id="@+id/btnViewSiteReports" style="@style/Widget.SPOT.Button.Secondary" android:layout_width="wrap_content" android:layout_height="38dp" android:minHeight="0dp" android:text="Reports" android:textSize="10sp" app:icon="@android:drawable/ic_menu_edit" app:iconSize="14dp"/>
+</LinearLayout>
+<androidx.recyclerview.widget.RecyclerView android:id="@+id/rvClientSites" android:layout_width="match_parent" android:layout_height="wrap_content" android:nestedScrollingEnabled="false" android:clipToPadding="false" android:overScrollMode="never" android:paddingBottom="20dp" tools:listitem="@layout/item_client_site"/>
+</LinearLayout>
+</androidx.core.widget.NestedScrollView>
+</androidx.coordinatorlayout.widget.CoordinatorLayout>

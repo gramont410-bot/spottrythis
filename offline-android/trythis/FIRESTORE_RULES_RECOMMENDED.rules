@@ -1,0 +1,143 @@
+// Firestore security rules for S.P.O.T.
+// Paste these into Firebase Console → Firestore Database → Rules → Publish
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: get the caller's user profile
+    function userDoc()  { return get(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function isAuthed() { return request.auth != null; }
+    function isSupervisor() {
+      return isAuthed() && (
+        userDoc().data.role == 'admin' ||
+        userDoc().data.role == 'Admin' ||
+        userDoc().data.role == 'supervisor' ||
+        userDoc().data.role == 'Supervisor' ||
+        userDoc().data.role == 'Supervisor Command Officer' ||
+        userDoc().data.role == 'supervisor command officer'
+      );
+    }
+    function isSelf(uid)    { return isAuthed() && request.auth.uid == uid; }
+    function isAssignedCheckpoint(checkpointId) {
+      return isAuthed()
+        && checkpointId is string
+        && exists(/databases/$(database)/documents/checkpoints/$(checkpointId))
+        && get(/databases/$(database)/documents/checkpoints/$(checkpointId)).data.siteId == request.resource.data.siteId
+        && get(/databases/$(database)/documents/checkpoints/$(checkpointId)).data.assignedGuardIds is list
+        && (
+          request.auth.uid in get(/databases/$(database)/documents/checkpoints/$(checkpointId)).data.assignedGuardIds
+          || (
+            userDoc().data.guardId is string
+            && userDoc().data.guardId in get(/databases/$(database)/documents/checkpoints/$(checkpointId)).data.assignedGuardIds
+          )
+        );
+    }
+
+    // /users : supervisors manage all; a guard can read/update their own doc
+    match /users/{uid} {
+      allow read:   if isAuthed() && (isSupervisor() || isSelf(uid));
+      allow create: if isSupervisor();
+      allow update: if isSupervisor() || (isSelf(uid) &&
+                       request.resource.data.role == resource.data.role);
+      allow delete: if isSupervisor();
+    }
+
+    // Devices — any authenticated user can register their phone on launch
+    // Supervisors can read all devices
+    match /devices/{deviceId} {
+      allow read: if isAuthed();
+      allow create, update: if isAuthed();
+      allow delete: if isSupervisor();
+    }
+
+    // Reference data — supervisors write, all authed users read
+    match /sites/{id}       { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    match /client_sites/{id} { allow read: if isAuthed(); allow write: if isAuthed(); }
+    match /checkpoints/{id} { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    match /routes/{id}      { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    match /schedules/{id}   { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    match /guard_schedules_template/{id} { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    // Supervisor-defined guard roving windows per deployment site
+    match /roving_assignments/{id} { allow read: if isAuthed(); allow write: if isSupervisor(); }
+    match /guardLocations/{id}  { allow read: if isSupervisor(); allow write: if isAuthed(); }
+    match /locationHistory/{id} { allow read: if isSupervisor(); allow write: if isAuthed(); }
+    match /approvalRequests/{id} { allow read, write: if isSupervisor(); }
+    match /auditLogs/{id} {
+      allow read: if isSupervisor();
+      allow create: if isSupervisor();
+      allow update, delete: if false;
+    }
+
+    // Patrol logs — guards create their own; supervisors read all
+    match /patrolLogs/{id} {
+      allow read:   if isAuthed() && (isSupervisor() || resource.data.guardId == request.auth.uid);
+      allow create: if isAuthed() && request.resource.data.guardId == request.auth.uid;
+      allow update, delete: if isSupervisor();
+    }
+
+    // Patrol schedules (Android app)
+    match /patrol_schedules/{id} {
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update, delete: if isSupervisor();
+    }
+
+    // Attendance records (Android face-verify login)
+    match /attendance/{id} {
+      allow read:   if isAuthed() && (isSupervisor() || resource.data.guardId == request.auth.uid);
+      allow create: if isAuthed();
+      allow update: if isAuthed();
+      allow delete: if isSupervisor();
+    }
+
+    // Face enrollment profiles for guard app login/attendance verification.
+    match /faceProfiles/{guardId} {
+      allow read: if isAuthed() && (
+        isSupervisor() ||
+        isSelf(guardId) ||
+        userDoc().data.guardId == guardId ||
+        userDoc().data.id == guardId
+      );
+      allow create, update, delete: if isSupervisor();
+    }
+
+    // Checkpoint scan logs. A guard can only create a log for a top-level
+    // checkpoint that is assigned to that authenticated guard and belongs to
+    // the same site carried in the scan record.
+    match /checkpoint_logs/{id} {
+      allow read: if isAuthed() && (
+        isSupervisor()
+        || resource.data.guardId == request.auth.uid
+        || (userDoc().data.guardId is string && resource.data.guardProfileId == userDoc().data.guardId)
+      );
+      allow create: if isAuthed()
+        && request.resource.data.guardId == request.auth.uid
+        && request.resource.data.assignmentVerified == true
+        && isAssignedCheckpoint(request.resource.data.checkpointId);
+      allow update, delete: if isSupervisor();
+    }
+
+    // Reports
+    match /reports/{id} {
+      allow read:   if isAuthed();
+      allow create: if isAuthed();
+      allow update, delete: if isSupervisor();
+    }
+
+    // Incidents / mobile guard reports — guards file their own; supervisors read/resolve
+    match /incidents/{id} {
+      allow read:   if isAuthed() && (isSupervisor() || resource.data.guardId == request.auth.uid);
+      allow create: if isAuthed() && request.resource.data.guardId == request.auth.uid;
+      allow update: if isSupervisor();
+      allow delete: if isSupervisor();
+    }
+
+    // Admin logs — append-only
+    match /adminLogs/{id} {
+      allow read: if isSupervisor();
+      allow create: if isAuthed();
+      allow update, delete: if false;
+    }
+  }
+}

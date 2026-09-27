@@ -1,0 +1,817 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- TOP APP BAR -->
+    <com.google.android.material.appbar.AppBarLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/surface"
+        app:elevation="0dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:paddingHorizontal="8dp">
+
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Back"
+                android:src="@android:drawable/ic_menu_revert"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/onBackground" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Incident Report"
+                android:textColor="@color/onBackground"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </com.google.android.material.appbar.AppBarLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true"
+        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- ═══ REPORT HEADER CARD ═══ -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SPOT.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Header row: badge + title -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.card.MaterialCardView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            app:cardBackgroundColor="#3A1D27"
+                            app:cardCornerRadius="10dp"
+                            app:cardElevation="0dp"
+                            app:strokeWidth="0dp">
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_gravity="center"
+                                android:contentDescription="Incident"
+                                android:src="@android:drawable/ic_dialog_alert"
+                                app:tint="@color/error" />
+                        </com.google.android.material.card.MaterialCardView>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="12dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="OFFICIAL INCIDENT REPORT"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="10sp"
+                                android:letterSpacing="0.06"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/tvReportId"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/onBackground"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                tools:text="RPT-20260915-001" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Status"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="10sp" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_spot_chip_success"
+                                android:paddingHorizontal="8dp"
+                                android:paddingVertical="3dp"
+                                android:text="Investigating"
+                                android:textColor="@color/success"
+                                android:textSize="10sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="12dp"
+                        android:background="@color/divider" />
+
+                    <!-- Date / Time / Site row -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="DATE"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="10sp"
+                                android:letterSpacing="0.04" />
+                            <TextView
+                                android:id="@+id/tvDate"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/onBackground"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                tools:text="Sept 15, 2026" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="TIME"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="10sp"
+                                android:letterSpacing="0.04" />
+                            <TextView
+                                android:id="@+id/tvTime"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/onBackground"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                tools:text="10:45 AM" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══ PERSONNEL SECTION ═══ -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="REPORTING PERSONNEL"
+                android:textColor="@color/secondary"
+                android:textSize="10sp"
+                android:letterSpacing="0.06"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SPOT.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Guard Name"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="11sp" />
+                            <TextView
+                                android:id="@+id/tvGuardName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/onBackground"
+                                android:textSize="14sp"
+                                android:textStyle="bold"
+                                tools:text="Marcus Williams" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:gravity="end"
+                            android:orientation="vertical">
+                            <TextView
+                                android:id="@+id/tvBadgeIDLabel"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Badge ID"
+                                android:textColor="@color/onSurfaceVariant"
+                                android:textSize="11sp"
+                                android:visibility="gone" />
+                            <TextView
+                                android:id="@+id/tvBadgeID"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:textColor="@color/primary"
+                                android:textSize="13sp"
+                                android:textStyle="bold"
+                                android:visibility="gone"
+                                tools:text="EMP-00427" />
+                        </LinearLayout>
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginVertical="10dp"
+                        android:background="@color/divider" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Deployment Location"
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="11sp" />
+                    <TextView
+                        android:id="@+id/tvAssignedSite"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/onBackground"
+                        android:textSize="14sp"
+                        android:textStyle="bold"
+                        tools:text="Northgate Financial Tower" />
+                    <TextView
+                        android:id="@+id/tvGuardNameLabel"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══ INCIDENT DETAILS SECTION ═══ -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="INCIDENT DETAILS"
+                android:textColor="@color/secondary"
+                android:textSize="10sp"
+                android:letterSpacing="0.06"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SPOT.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <!-- Incident Type -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="6dp"
+                        android:text="Incident Type"
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <Spinner
+                        android:id="@+id/spinnerIncidentType"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:background="@drawable/bg_spot_chip_success"
+                        android:paddingHorizontal="12dp" />
+
+                    <!-- Severity -->
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="Severity Level"
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:weightSum="4">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSeverityLow"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="4dp"
+                            android:text="Low"
+                            android:textSize="11sp"
+                            android:textAllCaps="false"
+                            app:strokeColor="@color/success"
+                            app:cornerRadius="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSeverityMedium"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:text="Medium"
+                            android:textSize="11sp"
+                            android:textAllCaps="false"
+                            app:strokeColor="@color/warning"
+                            app:cornerRadius="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSeverityHigh"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginHorizontal="4dp"
+                            android:text="High"
+                            android:textSize="11sp"
+                            android:textAllCaps="false"
+                            app:strokeColor="@color/error"
+                            app:cornerRadius="8dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnSeverityCritical"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="0dp"
+                            android:layout_height="36dp"
+                            android:layout_weight="1"
+                            android:layout_marginStart="4dp"
+                            android:text="Critical"
+                            android:textSize="10sp"
+                            android:textAllCaps="false"
+                            app:strokeColor="#FF00FF"
+                            app:cornerRadius="8dp" />
+
+                    </LinearLayout>
+
+                    <!-- Report Title -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.SPOT.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="14dp"
+                        android:hint="Incident Subject / Title">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etReportTitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Incident Location -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.SPOT.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Exact Location / Area"
+                        app:startIconDrawable="@android:drawable/ic_menu_myplaces"
+                        app:startIconTint="@color/secondary">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etIncidentLocation"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textCapSentences" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Full Description -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.SPOT.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Full Incident Description">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etReportDescription"
+                            android:layout_width="match_parent"
+                            android:layout_height="180dp"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:padding="14dp"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Actions Taken -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        style="@style/Widget.SPOT.TextInput"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:hint="Immediate Actions Taken">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etActionsTaken"
+                            android:layout_width="match_parent"
+                            android:layout_height="100dp"
+                            android:gravity="top|start"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:padding="14dp"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══ PHOTO EVIDENCE SECTION ═══ -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:text="PHOTO EVIDENCE"
+                android:textColor="@color/secondary"
+                android:textSize="10sp"
+                android:letterSpacing="0.06"
+                android:textStyle="bold" />
+
+            <com.google.android.material.card.MaterialCardView
+                style="@style/Widget.SPOT.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="14dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal"
+                        android:layout_marginBottom="10dp">
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:text="Attach up to 5 photos as evidence"
+                            android:textColor="@color/onSurfaceVariant"
+                            android:textSize="12sp" />
+
+                        <TextView
+                            android:id="@+id/tvPhotoCount"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="0 / 5"
+                            android:textColor="@color/primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <!-- Horizontal photo slots row -->
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scrollbars="none">
+
+                        <LinearLayout
+                            android:id="@+id/photoSlotsContainer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal">
+
+                            <!-- Add Photo button -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/btnAddPhoto"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:layout_marginEnd="8dp"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:foreground="?attr/selectableItemBackground"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/primary"
+                                app:strokeWidth="1dp">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:gravity="center"
+                                    android:orientation="vertical">
+
+                                    <ImageView
+                                        android:layout_width="28dp"
+                                        android:layout_height="28dp"
+                                        android:contentDescription="Add photo"
+                                        android:src="@android:drawable/ic_menu_camera"
+                                        app:tint="@color/primary" />
+
+                                    <TextView
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:layout_marginTop="4dp"
+                                        android:text="Add Photo"
+                                        android:textColor="@color/primary"
+                                        android:textSize="10sp"
+                                        android:textStyle="bold" />
+                                </LinearLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- Photo slot 1 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/photoSlot1"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:layout_marginEnd="8dp"
+                                android:visibility="gone"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/outlineSoft"
+                                app:strokeWidth="1dp">
+                                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                                    <ImageView
+                                        android:id="@+id/ivPhoto1"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:contentDescription="Photo 1"
+                                        android:scaleType="centerCrop" />
+                                    <ImageButton
+                                        android:id="@+id/btnRemovePhoto1"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_gravity="top|end"
+                                        android:layout_margin="4dp"
+                                        android:background="#CC000000"
+                                        android:contentDescription="Remove photo 1"
+                                        android:padding="2dp"
+                                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                        app:tint="@color/white" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- Photo slot 2 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/photoSlot2"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:layout_marginEnd="8dp"
+                                android:visibility="gone"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/outlineSoft"
+                                app:strokeWidth="1dp">
+                                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                                    <ImageView
+                                        android:id="@+id/ivPhoto2"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:contentDescription="Photo 2"
+                                        android:scaleType="centerCrop" />
+                                    <ImageButton
+                                        android:id="@+id/btnRemovePhoto2"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_gravity="top|end"
+                                        android:layout_margin="4dp"
+                                        android:background="#CC000000"
+                                        android:contentDescription="Remove photo 2"
+                                        android:padding="2dp"
+                                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                        app:tint="@color/white" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- Photo slot 3 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/photoSlot3"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:layout_marginEnd="8dp"
+                                android:visibility="gone"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/outlineSoft"
+                                app:strokeWidth="1dp">
+                                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                                    <ImageView
+                                        android:id="@+id/ivPhoto3"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:contentDescription="Photo 3"
+                                        android:scaleType="centerCrop" />
+                                    <ImageButton
+                                        android:id="@+id/btnRemovePhoto3"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_gravity="top|end"
+                                        android:layout_margin="4dp"
+                                        android:background="#CC000000"
+                                        android:contentDescription="Remove photo 3"
+                                        android:padding="2dp"
+                                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                        app:tint="@color/white" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- Photo slot 4 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/photoSlot4"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:layout_marginEnd="8dp"
+                                android:visibility="gone"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/outlineSoft"
+                                app:strokeWidth="1dp">
+                                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                                    <ImageView
+                                        android:id="@+id/ivPhoto4"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:contentDescription="Photo 4"
+                                        android:scaleType="centerCrop" />
+                                    <ImageButton
+                                        android:id="@+id/btnRemovePhoto4"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_gravity="top|end"
+                                        android:layout_margin="4dp"
+                                        android:background="#CC000000"
+                                        android:contentDescription="Remove photo 4"
+                                        android:padding="2dp"
+                                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                        app:tint="@color/white" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                            <!-- Photo slot 5 -->
+                            <com.google.android.material.card.MaterialCardView
+                                android:id="@+id/photoSlot5"
+                                android:layout_width="88dp"
+                                android:layout_height="88dp"
+                                android:visibility="gone"
+                                android:clickable="true"
+                                android:focusable="true"
+                                app:cardBackgroundColor="@color/surfaceDeep"
+                                app:cardCornerRadius="12dp"
+                                app:cardElevation="0dp"
+                                app:strokeColor="@color/outlineSoft"
+                                app:strokeWidth="1dp">
+                                <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent">
+                                    <ImageView
+                                        android:id="@+id/ivPhoto5"
+                                        android:layout_width="match_parent"
+                                        android:layout_height="match_parent"
+                                        android:contentDescription="Photo 5"
+                                        android:scaleType="centerCrop" />
+                                    <ImageButton
+                                        android:id="@+id/btnRemovePhoto5"
+                                        android:layout_width="20dp"
+                                        android:layout_height="20dp"
+                                        android:layout_gravity="top|end"
+                                        android:layout_margin="4dp"
+                                        android:background="#CC000000"
+                                        android:contentDescription="Remove photo 5"
+                                        android:padding="2dp"
+                                        android:src="@android:drawable/ic_menu_close_clear_cancel"
+                                        app:tint="@color/white" />
+                                </FrameLayout>
+                            </com.google.android.material.card.MaterialCardView>
+
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="Tap the camera icon to take or select a photo. Tap a photo to remove it."
+                        android:textColor="@color/onSurfaceVariant"
+                        android:textSize="11sp" />
+
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- ═══ UPLOAD PROGRESS ═══ -->
+            <LinearLayout
+                android:id="@+id/layoutUploadProgress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:visibility="gone">
+                <ProgressBar
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginEnd="8dp" />
+                <TextView
+                    android:id="@+id/tvUploadStatus"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Uploading photos…"
+                    android:textColor="@color/primary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- ═══ SUBMIT BUTTON ═══ -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSubmitReport"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:layout_marginTop="8dp"
+                android:layout_marginBottom="30dp"
+                android:text="Submit Official Report"
+                android:textSize="15sp"
+                android:textStyle="bold"
+                app:cornerRadius="14dp"
+                app:icon="@android:drawable/ic_menu_send" />
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.coordinatorlayout.widget.CoordinatorLayout>
