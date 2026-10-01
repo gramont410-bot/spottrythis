@@ -56,7 +56,7 @@ export function AuthProvider({ children }) {
         if (u) {
           let claims = {};
           try {
-            const token = await getIdTokenResult(u, true);
+            const token = await getIdTokenResult(u);
             claims = token.claims || {};
             if (db) {
               const snap = await getDoc(doc(db, 'users', u.uid));

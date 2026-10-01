@@ -176,7 +176,7 @@ export function SpotProvider({ children }) {
 
   useEffect(() => {
     if (!hasFirebaseConfig || !db) return;
-    const isClient = role === 'client';
+    const isClient = role === 'client' || (role === 'admin' && Boolean(profile?.clientId));
     const clientScope = isClient && profile?.clientId ? [where('clientId', '==', profile.clientId)] : [];
     const subscribeForRole = (name, callback, options = {}) => {
       if (isClient && options.staffOnly) return () => {};

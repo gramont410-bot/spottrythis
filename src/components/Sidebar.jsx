@@ -30,7 +30,8 @@ export default function Sidebar() {
   const { logout, profile, role } = useAuth();
   const location = useLocation();
 
-  const navigationGroups = role === 'client'
+  const isClientWorkspace = role === 'client' || (role === 'admin' && Boolean(profile?.clientId));
+  const navigationGroups = isClientWorkspace
     ? [
         { label: 'Client Workspace', items: [
           { label: 'Operations Overview', path: '/client', icon: Building2 },

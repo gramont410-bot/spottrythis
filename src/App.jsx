@@ -39,7 +39,7 @@ class ClientRouteBoundary extends React.Component {
 const STAFF_ROLES = ['superadmin', 'admin'];
 
 export default function App() {
-  const { user, loading, role } = useAuth();
+  const { user, loading, role, profile } = useAuth();
 
   if (loading) {
     return (
@@ -54,12 +54,15 @@ export default function App() {
 
   if (!user) return <Login />;
 
-  if (role === 'client') {
+  const isClientWorkspace = role === 'client' || (role === 'admin' && Boolean(profile?.clientId));
+
+  if (isClientWorkspace) {
     return (
       <SpotProvider>
         <ClientRouteBoundary><Routes>
           <Route path="/client" element={<ClientPortal />} />
           <Route path="/client/schedules" element={<ClientSchedules />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<Navigate to="/client" replace />} />
         </Routes></ClientRouteBoundary>
       </SpotProvider>
