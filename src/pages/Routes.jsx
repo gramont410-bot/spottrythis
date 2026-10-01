@@ -6,12 +6,14 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clock,
+  ChevronDown,
   Filter,
   MapPin,
   PlayCircle,
   QrCode,
   Search,
   ShieldCheck,
+  Users,
   X
 } from 'lucide-react';
 
@@ -320,7 +322,7 @@ function PatrolCard({ patrol, onOpen }) {
     <button
       type="button"
       onClick={() => onOpen(patrol)}
-      className={`card-spot flex w-full cursor-pointer flex-col justify-between text-left transition-all duration-200 hover:-translate-y-1 ${style.border}`}
+      className={`card-spot flex w-full cursor-pointer flex-col justify-between text-left transition-all duration-200 hover:-translate-y-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 ${style.border}`}
     >
       <div>
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -409,6 +411,46 @@ function PatrolCard({ patrol, onOpen }) {
   );
 }
 
+function GuardSummary({ guardName, guardPhoto, patrols, isOpen, onToggle, onOpenPatrol }) {
+  const completed = patrols.filter((patrol) => patrol.status === 'Completed').length;
+  const missed = patrols.filter((patrol) => patrol.status === 'Missed').length;
+  const pending = patrols.filter((patrol) => ['In Progress', 'Late', 'Scheduled'].includes(patrol.status)).length;
+
+  return (
+    <div className={`overflow-hidden rounded-xl border transition-colors ${isOpen ? 'border-cyan-400/50 bg-cyan-400/[0.04] shadow-lg shadow-cyan-950/20' : 'border-slate-800 bg-slate-900/35 hover:border-slate-600'}`}>
+      <button type="button" onClick={onToggle} className="group flex w-full items-center gap-3 p-3 text-left transition hover:bg-slate-800/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70 focus-visible:ring-inset" aria-expanded={isOpen}>
+        <GuardAvatar photo={guardPhoto} name={guardName} />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <div className="truncate text-sm font-bold text-white">{guardName}</div>
+            <span className="hidden rounded-full border border-cyan-400/20 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300 group-hover:inline-flex">View patrols</span>
+          </div>
+          <div className="mt-0.5 text-[10px] text-slate-500">{patrols.length} patrol{patrols.length === 1 ? '' : 's'} assigned</div>
+        </div>
+        <div className="hidden items-center gap-3 text-[10px] font-bold uppercase tracking-wide sm:flex">
+          <span className="text-emerald-400">{completed} Success</span>
+          <span className="text-rose-400">{missed} Missed</span>
+          <span className="text-amber-300">{pending} Pending</span>
+        </div>
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {isOpen && (
+        <div className="border-t border-slate-800 p-3">
+          <div className="mb-3 grid grid-cols-3 gap-2 sm:hidden">
+            <div className="rounded-lg bg-emerald-500/10 p-2 text-center text-[10px] font-bold text-emerald-400">{completed} Success</div>
+            <div className="rounded-lg bg-rose-500/10 p-2 text-center text-[10px] font-bold text-rose-400">{missed} Missed</div>
+            <div className="rounded-lg bg-amber-500/10 p-2 text-center text-[10px] font-bold text-amber-300">{pending} Pending</div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {patrols.map((patrol) => <PatrolCard key={patrol.id} patrol={patrol} onOpen={onOpenPatrol} />)}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PatrolOperations() {
   const { patrols = [] } = useSpot();
 
@@ -417,6 +459,8 @@ export default function PatrolOperations() {
   const [siteFilter, setSiteFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [hideLegacy, setHideLegacy] = useState(true);
+  const [selectedSiteKey, setSelectedSiteKey] = useState(null);
+  const [expandedGuardKey, setExpandedGuardKey] = useState(null);
 
   const normalizedPatrols = useMemo(
     () => patrols.map(normalizePatrol),
@@ -581,8 +625,42 @@ export default function PatrolOperations() {
           />
         </div>
 
+        <div className="rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-4 shadow-lg shadow-cyan-950/10">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-cyan-300">Patrol navigator</div>
+              <p className="mt-1 text-xs text-slate-400">Start broad, then open only the detail you need.</p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold ${siteFilter !== 'all' ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 bg-slate-900/50 text-slate-300'}`}>
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-cyan-400 text-[10px] font-black text-slate-950">1</span>
+                Choose location
+              </div>
+              <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold ${expandedGuardKey ? 'border-cyan-400/40 bg-cyan-400/10 text-cyan-200' : 'border-slate-700 bg-slate-900/50 text-slate-300'}`}>
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-slate-700 text-[10px] font-black text-white">2</span>
+                Choose guard
+              </div>
+              <div className="flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/50 px-3 py-2 text-[11px] font-bold text-slate-300">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-slate-700 text-[10px] font-black text-white">3</span>
+                Open patrol detail
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Search + site + status controls */}
         <div className="card-spot p-4">
+          <div className="mb-3 flex flex-col gap-2 border-b border-slate-800 pb-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-cyan-300" />
+              <span className="text-xs font-black uppercase tracking-wider text-white">Narrow patrol results</span>
+            </div>
+            {(siteFilter !== 'all' || statusFilter !== 'all' || searchQuery) && (
+              <button type="button" onClick={() => { setSearchQuery(''); setSiteFilter('all'); setStatusFilter('all'); setSelectedSiteKey(null); setExpandedGuardKey(null); }} className="btn-ghost px-2 py-1 text-[11px] text-cyan-300">
+                Clear filters
+              </button>
+            )}
+          </div>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="relative min-w-0 flex-1">
               <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-400" />
@@ -601,7 +679,7 @@ export default function PatrolOperations() {
                 <select
                   value={siteFilter}
                   onChange={(event) => setSiteFilter(event.target.value)}
-                  className="input-spot w-full appearance-none pl-9 pr-8"
+                  className={`input-spot w-full appearance-none pl-9 pr-8 ${siteFilter !== 'all' ? 'border-cyan-400/60 ring-2 ring-cyan-500/10' : ''}`}
                 >
                   <option value="all">All Sites</option>
                   {siteOptions.map((site) => (
@@ -649,7 +727,7 @@ export default function PatrolOperations() {
           </div>
         </div>
 
-        {/* Site-grouped patrol monitoring */}
+        {/* Location-first patrol monitoring */}
         {groupedPatrols.length > 0 ? (
           <div className="space-y-7">
             {groupedPatrols.map((group) => {
@@ -661,34 +739,44 @@ export default function PatrolOperations() {
                 (patrol) => patrol.status === 'Completed'
               ).length;
 
+              const guardGroups = Array.from(
+                group.patrols.reduce((guardsByKey, patrol) => {
+                  const key = patrol.guardId || patrol.guardName || 'unknown-guard';
+                  if (!guardsByKey.has(key)) {
+                    guardsByKey.set(key, { key, name: patrol.guardName || 'Unknown Guard', photo: patrol.guardPhoto, patrols: [] });
+                  }
+                  guardsByKey.get(key).patrols.push(patrol);
+                  return guardsByKey;
+                }, new Map()).values()
+              );
+              const siteIsOpen = selectedSiteKey === group.key || siteFilter === group.key;
+
               return (
                 <section key={group.key} className="space-y-3">
-                  <div className="flex flex-col gap-2 border-b border-slate-800 pb-3 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
+                  <button type="button" onClick={() => { setSelectedSiteKey(siteIsOpen ? null : group.key); setSiteFilter(siteIsOpen ? 'all' : group.key); setExpandedGuardKey(null); }} className="flex w-full items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/45 p-4 text-left transition hover:border-blue-500/40 hover:bg-slate-900/70" aria-expanded={siteIsOpen}>
+                    <div className={`rounded-lg p-2.5 ${siteIsOpen ? 'bg-cyan-400/15 text-cyan-300' : 'bg-blue-500/10 text-blue-400'}`}><MapPin className="h-5 w-5" /></div>
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <MapPin className="h-4 w-4 text-blue-400" />
-                        <h3 className="text-sm font-black text-white">{group.siteName}</h3>
+                        <h3 className="truncate text-sm font-black text-white">{group.siteName}</h3>
+                        {siteIsOpen && <span className="rounded-full border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-cyan-300">Selected</span>}
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-500">
-                        {group.patrols.length} patrol{group.patrols.length === 1 ? '' : 's'} shown
-                      </p>
+                      <p className="mt-1 text-[11px] text-slate-500">{guardGroups.length} guard{guardGroups.length === 1 ? '' : 's'} · {group.patrols.length} patrol{group.patrols.length === 1 ? '' : 's'}</p>
                     </div>
+                    <div className="hidden items-center gap-4 text-[10px] font-bold uppercase tracking-wider sm:flex"><span className="text-emerald-400">{activeCount} Active</span><span className="text-blue-400">{completedCount} Success</span></div>
+                    <div className="hidden shrink-0 text-[10px] font-bold uppercase tracking-wider text-cyan-300 sm:block">{siteIsOpen ? 'Hide guards' : 'Choose location'}</div>
+                    <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform ${siteIsOpen ? 'rotate-180' : ''}`} />
+                  </button>
 
-                    <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-wider">
-                      <span className="text-emerald-400">{activeCount} Active</span>
-                      <span className="text-blue-400">{completedCount} Completed</span>
+                  {siteIsOpen && <div className="space-y-2 pl-2 sm:pl-4">
+                    <div className="flex items-center gap-2 px-1 pt-1 text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">
+                      <Users className="h-3.5 w-3.5" />
+                      Guards at this location
                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
-                    {group.patrols.map((patrol) => (
-                      <PatrolCard
-                        key={patrol.id}
-                        patrol={patrol}
-                        onOpen={setSelectedPatrol}
-                      />
-                    ))}
-                  </div>
+                    {guardGroups.map((guard) => {
+                      const guardKey = `${group.key}:${guard.key}`;
+                      return <GuardSummary key={guardKey} guardName={guard.name} guardPhoto={guard.photo} patrols={guard.patrols} isOpen={expandedGuardKey === guardKey} onToggle={() => setExpandedGuardKey((current) => current === guardKey ? null : guardKey)} onOpenPatrol={setSelectedPatrol} />;
+                    })}
+                  </div>}
                 </section>
               );
             })}

@@ -6,10 +6,16 @@ import { useSpot } from '../context/SpotContext';
 
 function belongsToClient(item, profile) {
   if (!profile) return false;
-  return item.clientId === profile.clientId ||
-    item.client === profile.company ||
-    item.client === profile.agency ||
-    item.clientEmail === profile.email;
+
+  const sameValue = (left, right) => {
+    if (left === null || left === undefined || right === null || right === undefined) return false;
+    return String(left).trim().toLowerCase() === String(right).trim().toLowerCase();
+  };
+
+  return sameValue(item.clientId, profile.clientId) ||
+    sameValue(item.client, profile.company) ||
+    sameValue(item.client, profile.agency) ||
+    sameValue(item.clientEmail, profile.email);
 }
 
 export default function ClientPortal() {

@@ -40,8 +40,8 @@ export default function Devices() {
       <div className="space-y-6">
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3 lg:grid-cols-12">
-          <div className="card-spot group flex min-h-[164px] flex-col items-center justify-center text-center lg:col-span-5">
+        <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-3">
+          <div className="card-spot group flex min-h-[164px] flex-col items-center justify-center text-center">
             <div className="mb-3 rounded-2xl border border-blue-500/30 bg-blue-500/15 p-3.5 text-blue-400 transition-transform duration-200 group-hover:scale-110">
               <Smartphone className="h-8 w-8" strokeWidth={2.2} />
             </div>
@@ -49,19 +49,19 @@ export default function Devices() {
             <div className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-400">Total Devices</div>
             <div className="mt-1 text-[10px] text-slate-500">Registered in the platform</div>
           </div>
-          <div className="card-spot group flex min-h-[148px] flex-col items-center justify-center text-center lg:col-span-4">
-            <div className="mb-2 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 p-3 text-emerald-400 transition-transform duration-200 group-hover:scale-110">
-              <Link className="h-7 w-7" strokeWidth={2.2} />
+          <div className="card-spot group flex min-h-[164px] flex-col items-center justify-center text-center">
+            <div className="mb-3 rounded-2xl border border-emerald-500/30 bg-emerald-500/15 p-3.5 text-emerald-400 transition-transform duration-200 group-hover:scale-110">
+              <Link className="h-8 w-8" strokeWidth={2.2} />
             </div>
-            <div className="text-4xl font-bold leading-none text-white">{assigned.length}</div>
+            <div className="text-5xl font-bold leading-none text-white">{assigned.length}</div>
             <div className="mt-2 text-xs font-bold uppercase tracking-wider text-slate-400">Assigned to Guard</div>
             <div className="mt-1 text-[10px] text-slate-500">Active device bindings</div>
           </div>
-          <div className={`card-spot group flex min-h-[132px] flex-col items-center justify-center text-center lg:col-span-3 ${unassigned.length > 0 ? 'border-amber-500/30 bg-amber-950/10' : ''}`}>
-            <div className="mb-2 rounded-2xl border border-amber-500/30 bg-amber-500/15 p-2.5 text-amber-400 transition-transform duration-200 group-hover:scale-110">
-              <Unlink className="h-6 w-6" strokeWidth={2.2} />
+          <div className={`card-spot group flex min-h-[164px] flex-col items-center justify-center text-center ${unassigned.length > 0 ? 'border-amber-500/30 bg-amber-950/10' : ''}`}>
+            <div className="mb-3 rounded-2xl border border-amber-500/30 bg-amber-500/15 p-3.5 text-amber-400 transition-transform duration-200 group-hover:scale-110">
+              <Unlink className="h-8 w-8" strokeWidth={2.2} />
             </div>
-            <div className="text-3xl font-bold leading-none text-white">{unassigned.length}</div>
+            <div className="text-5xl font-bold leading-none text-white">{unassigned.length}</div>
             <div className="mt-2 text-xs font-bold uppercase tracking-wider text-amber-300">Unassigned</div>
             <div className="mt-1 text-[10px] text-slate-500">Available for binding</div>
           </div>

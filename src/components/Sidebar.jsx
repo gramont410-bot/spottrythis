@@ -184,10 +184,11 @@ export default function Sidebar() {
 
             <button
               onClick={logout}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-rose-500/20 hover:text-rose-400"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-slate-700/80 px-3 text-xs font-bold text-slate-300 transition hover:border-rose-400/50 hover:bg-rose-500/20 hover:text-rose-300 focus:outline-none focus:ring-2 focus:ring-rose-400/60"
               title="Logout"
             >
               <LogOut className="h-4 w-4" />
+              <span>Logout</span>
             </button>
           </div>
         ) : (

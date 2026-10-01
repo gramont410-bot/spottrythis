@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { useSpot } from '../context/SpotContext';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polyline, useMap } from 'react-leaflet';
@@ -58,9 +59,11 @@ function LiveMapViewport({ guards, resetKey }) {
 
 export default function Dashboard() {
   const { stats, guards, guardLocations, liveEvents, openGuardDrawer, addToast } = useSpot();
+  const navigate = useNavigate();
   const [timeFilter, setTimeFilter] = useState('Daily');
   const [activeTab, setActiveTab] = useState('All');
   const [mapResetKey, setMapResetKey] = useState(0);
+  const [previewCard, setPreviewCard] = useState(null);
 
   const visibleGuards = guards.filter((guard) => {
     if (activeTab === 'All') return true;
@@ -93,14 +96,14 @@ export default function Dashboard() {
   });
 
   const topCards = [
-    { title: 'Active Guards', count: stats.activeGuards, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
-    { title: 'Currently On Patrol', count: stats.currentlyOnPatrol, icon: ShieldAlert, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-    { title: "Today's Patrols", count: stats.todaysPatrols, icon: CalendarCheck, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20' },
-    { title: 'Completed Patrols', count: stats.completedPatrols, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20' },
-    { title: 'Delayed Patrols', count: stats.delayedPatrols, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20' },
-    { title: 'Missed Patrols', count: stats.missedPatrols, icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20' },
-    { title: 'Offline Guards', count: stats.offlineGuards, icon: WifiOff, color: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/20' },
-    { title: 'Incidents Today', count: stats.incidentsToday, icon: Activity, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20' }
+    { title: 'Active Guards', count: stats.activeGuards, icon: Users, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', detail: 'Guards currently assigned to active duty.', path: '/guards' },
+    { title: 'Currently On Patrol', count: stats.currentlyOnPatrol, icon: ShieldAlert, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', detail: 'Guards with a patrol currently in progress.', path: '/routes' },
+    { title: "Today's Patrols", count: stats.todaysPatrols, icon: CalendarCheck, color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/20', detail: 'Patrol assignments scheduled for today.', path: '/routes' },
+    { title: 'Completed Patrols', count: stats.completedPatrols, icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/20', detail: 'Patrols completed with recorded progress.', path: '/routes' },
+    { title: 'Delayed Patrols', count: stats.delayedPatrols, icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/20', detail: 'Patrols that passed their expected start time.', path: '/routes' },
+    { title: 'Missed Patrols', count: stats.missedPatrols, icon: AlertTriangle, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', detail: 'Patrols that were not started within the window.', path: '/routes' },
+    { title: 'Offline Guards', count: stats.offlineGuards, icon: WifiOff, color: 'text-slate-400', bg: 'bg-slate-500/10 border-slate-500/20', detail: 'Guards without a current live GPS connection.', path: '/tracking' },
+    { title: 'Incidents Today', count: stats.incidentsToday, icon: Activity, color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/20', detail: 'Incident records reported during today\'s operations.', path: '/incidents' }
   ];
 
   const mapCenter = [14.5547, 121.0244];
@@ -112,26 +115,38 @@ export default function Dashboard() {
     >
       <div className="command-grid space-y-6">
         {/* Top 8 Statistics Cards */}
-        <div className="grid auto-rows-fr grid-cols-2 gap-3.5 sm:grid-cols-4 lg:grid-cols-8">
+        <div className="grid auto-rows-fr grid-cols-2 gap-3.5 sm:grid-cols-4 lg:grid-cols-4">
           {topCards.map((card, idx) => {
             const Icon = card.icon;
-            const isFeatured = idx === 0;
-            const isSecondary = idx === 1 || idx === 2;
             return (
-              <div
+              <button
+                type="button"
                 key={idx}
-                className={`card-spot flex min-h-[112px] cursor-pointer flex-col justify-between p-4 transition-all duration-200 hover:-translate-y-1 hover:shadow-2xl ${
-                  isFeatured ? 'min-h-[232px] p-5 lg:col-span-2 lg:row-span-2' : isSecondary ? 'lg:col-span-2' : ''
-                }`}
+                tabIndex={0}
+                aria-label={`${card.title}: ${card.count}. Open related operations.`}
+                onMouseEnter={() => setPreviewCard(idx)}
+                onMouseLeave={() => setPreviewCard(null)}
+                onFocus={() => setPreviewCard(idx)}
+                onBlur={() => setPreviewCard(null)}
+                onClick={() => navigate(card.path)}
+                className="group relative min-h-[132px] cursor-pointer overflow-hidden rounded-[16px] border border-white/10 bg-slate-800/55 p-5 text-left shadow-xl shadow-slate-950/40 outline-none transition-all duration-200 hover:-translate-y-1 hover:border-cyan-400/60 hover:shadow-2xl focus-visible:ring-2 focus-visible:ring-cyan-400/80"
               >
-                <div className="flex items-center justify-between">
-                  <span className={`${isFeatured ? 'text-xs' : 'text-[11px]'} truncate font-semibold text-slate-400`}>{card.title}</span>
+                <div className="flex h-full flex-col justify-between">
+                  <div className="flex items-center justify-between">
+                  <span className="truncate text-[11px] font-semibold text-slate-400">{card.title}</span>
                   <div className={`p-1.5 rounded-lg border ${card.bg}`}>
-                    <Icon className={`${isFeatured ? 'h-5 w-5' : 'h-4 w-4'} ${card.color}`} />
+                    <Icon className={`h-4 w-4 ${card.color}`} />
                   </div>
+                  </div>
+                  <div className="mt-3 text-2xl font-bold tracking-tight text-white">{card.count}</div>
                 </div>
-                <div className={`${isFeatured ? 'text-4xl' : 'text-2xl'} mt-3 font-bold tracking-tight text-white`}>{card.count}</div>
-              </div>
+
+                <div className={`pointer-events-none absolute inset-x-0 bottom-0 border-t border-cyan-400/30 bg-slate-950/95 px-3 py-2.5 transition-transform duration-200 ${previewCard === idx ? 'translate-y-0' : 'translate-y-full'}`}>
+                  <div className="text-[9px] font-black uppercase tracking-[0.14em] text-cyan-300">Operational preview</div>
+                  <div className="mt-1 text-[10px] leading-snug text-slate-300">{card.detail}</div>
+                  <div className="mt-2 text-[10px] font-black uppercase tracking-wider text-cyan-300">Open related view →</div>
+                </div>
+              </button>
             );
           })}
         </div>
@@ -175,8 +190,8 @@ export default function Dashboard() {
                 className="w-full h-full z-0"
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
                 <LiveMapViewport guards={mappableGuards} resetKey={mapResetKey} />

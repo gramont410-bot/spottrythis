@@ -6,6 +6,17 @@ import axios from 'axios';
 
 admin.initializeApp();
 
+function isSuperAdminRole(role) {
+  const normalized = String(role || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+  return [
+    'superadmin',
+    'super_admin',
+    'supervisor',
+    'supervisor_admin',
+    'supervisor_command_officer'
+  ].includes(normalized);
+}
+
 async function writePatrolAudit(action, targetId, data, details) {
   await admin.firestore().collection('adminLogs').add({
     action,
@@ -161,7 +172,7 @@ export const createManagedAccount = onCall(async (request) => {
 
   const caller = await admin.firestore().doc(`users/${request.auth.uid}`).get();
   const callerRole = String(caller.data()?.role || '').toLowerCase();
-  if (!['superadmin', 'super admin', 'supervisor', 'supervisor admin', 'supervisor_admin', 'supervisor command officer'].includes(callerRole)) {
+  if (!isSuperAdminRole(callerRole)) {
     throw new HttpsError('permission-denied', 'Only an operations administrator can create managed accounts.');
   }
 
@@ -206,9 +217,13 @@ export const createManagedAccount = onCall(async (request) => {
 export const setManagedPassword = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in before changing a managed password.');
   const caller = await admin.firestore().doc(`users/${request.auth.uid}`).get();
-  if (String(caller.data()?.role || '').toLowerCase() !== 'superadmin') throw new HttpsError('permission-denied', 'Only a SuperAdmin can set a client password.');
+  if (!isSuperAdminRole(caller.data()?.role)) throw new HttpsError('permission-denied', 'Only a SuperAdmin can set a client password.');
   const { uid, password } = request.data || {};
   if (!uid || !password || password.length < 6) throw new HttpsError('invalid-argument', 'A user ID and password of at least six characters are required.');
+  const target = await admin.firestore().doc(`users/${uid}`).get();
+  if (!target.exists || String(target.data()?.role || '').trim().toLowerCase() !== 'client') {
+    throw new HttpsError('failed-precondition', 'This password action is only for client accounts.');
+  }
   await admin.auth().updateUser(uid, { password });
   await admin.firestore().doc(`users/${uid}`).set({ passwordUpdatedAt: admin.firestore.FieldValue.serverTimestamp(), mustChangePassword: true }, { merge: true });
   await admin.firestore().collection('adminLogs').add({ action: 'PASSWORD_RESET', collection: 'users', targetId: uid, actor: request.auth.uid, category: 'Security', severity: 'Warning', details: 'Temporary password set by SuperAdmin', timestamp: admin.firestore.FieldValue.serverTimestamp() });

@@ -122,6 +122,7 @@ export default function Layout({ children, title, subtitle, actions }) {
 
           {/* Right: Live Ticker, Notifications & User */}
           <div className="flex items-center gap-4">
+            <div className="flex items-end gap-3 lg:flex-col lg:gap-1">
             {/* Live Clock & Status */}
             <div className="hidden lg:flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 px-3.5 py-1.5 text-xs">
               <div className="flex items-center gap-2 border-r border-slate-800 pr-3">
@@ -186,22 +187,7 @@ export default function Layout({ children, title, subtitle, actions }) {
                 </div>
               )}
             </div>
-
-            {/* Profile Avatar Quick Info */}
-            <Link
-              to="/profile"
-              className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-900/60 p-1.5 pr-3 hover:border-slate-700 transition"
-            >
-              <div className="h-8 w-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-md">
-                {profile?.name ? profile.name.charAt(0) : 'S'}
-              </div>
-              <div className="hidden sm:flex flex-col">
-                <span className="text-xs font-semibold text-white leading-tight">
-                  {profile?.name || 'Supervisor Admin'}
-                </span>
-                <span className="text-[10px] text-slate-400">Command HQ</span>
-              </div>
-            </Link>
+            </div>
 
             {actions && <div className="flex items-center gap-2">{actions}</div>}
           </div>

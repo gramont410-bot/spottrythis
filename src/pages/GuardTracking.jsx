@@ -27,6 +27,7 @@ import {
   MapPin,
   Radio,
   ShieldCheck,
+  Users,
   Zap
 } from 'lucide-react';
 
@@ -921,7 +922,7 @@ export default function GuardTracking() {
       <div className="space-y-4">
 
         {/* Guard Selector Ribbon */}
-        <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-2">
+        <div className="flex items-center gap-3 overflow-x-auto custom-scrollbar pb-2 lg:hidden">
 
           {guards.map(
             (guard) => {
@@ -1009,8 +1010,41 @@ export default function GuardTracking() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch min-h-[620px]">
 
-          {/* Left Timeline Panel */}
-          <div className="lg:col-span-3 card-spot flex flex-col justify-between">
+          {/* Left Guard List + Timeline Panels */}
+          <div className="lg:col-span-3 space-y-4">
+          <div className="card-spot p-4">
+            <div className="mb-3 flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-300">
+                <Users className="h-4 w-4 text-cyan-300" /> Guard List
+              </h3>
+              <span className="text-[10px] font-semibold text-slate-500">{guards.length} total</span>
+            </div>
+            <div className="max-h-[220px] space-y-2 overflow-y-auto pr-1 custom-scrollbar">
+              {guards.map((guard) => {
+                const location = guardLocations.find((item) => String(item.guardId || item.id) === String(guard.id));
+                const live = Boolean(location?.tracking);
+                const selected = guard.id === activeGuard.id;
+                return (
+                  <button
+                    key={guard.id}
+                    type="button"
+                    onClick={() => setSelectedGuardId(guard.id)}
+                    className={`flex w-full items-center gap-2.5 rounded-xl border p-2.5 text-left transition focus:outline-none focus:ring-2 focus:ring-cyan-400/70 ${selected ? 'border-blue-400/60 bg-blue-500/15 shadow-md shadow-blue-950/20' : 'border-slate-800 bg-slate-950/30 hover:border-slate-600 hover:bg-slate-900/70'}`}
+                  >
+                    {guard.photo ? <img src={guard.photo} alt={guard.name} className="h-8 w-8 shrink-0 rounded-full object-cover" /> : <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-700 bg-slate-800 text-[10px] font-bold text-white">{String(guard.name || 'G').charAt(0).toUpperCase()}</div>}
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-xs font-bold text-white">{guard.name}</div>
+                      <div className="truncate text-[10px] text-slate-500">{guard.siteName || 'No location assigned'}</div>
+                    </div>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${live ? 'animate-pulse bg-emerald-400' : guard.status === 'Emergency' ? 'animate-ping bg-rose-400' : 'bg-slate-600'}`} title={live ? 'Live GPS tracking' : 'Not currently tracking'} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Route Timeline Panel */}
+          <div className="card-spot flex flex-col justify-between">
 
             <div>
 
@@ -1172,6 +1206,8 @@ export default function GuardTracking() {
 
           </div>
 
+          </div>
+
 
           {/* Center Live Leaflet Map */}
           <div className="lg:col-span-6 card-spot p-0 overflow-hidden relative flex flex-col min-h-[500px]">
@@ -1214,8 +1250,8 @@ export default function GuardTracking() {
               >
 
                 <TileLayer
-                  attribution="&copy; CARTO"
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
 
                 <LiveMapRecenter

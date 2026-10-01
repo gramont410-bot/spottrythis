@@ -103,21 +103,27 @@ export default function Checkpoints() {
           <p className="mt-1 text-xs text-cyan-100/70">A unique synchronized code is generated after saving.</p>
         </div>
 
-        <div className="form-grid">
-          <div className="field">
-            <label className="label">Checkpoint Name</label>
-            <input className="input" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lobby Entrance" />
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="checkpoint-name">Checkpoint Name</label>
+            <input id="checkpoint-name" className="input-spot" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lobby Entrance" />
           </div>
-          <div className="field">
-            <label className="label">Site</label>
-            <select className="input" value={form.siteId} onChange={(e) => setForm({ ...form, siteId: e.target.value })}>
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="checkpoint-site">Site</label>
+            <select id="checkpoint-site" className="input-spot" value={form.siteId} onChange={(e) => setForm({ ...form, siteId: e.target.value })}>
               <option value="">Select a site...</option>
               {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="field"><label className="label">Latitude</label><input className="input" value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} placeholder="14.5547" /></div>
-            <div className="field"><label className="label">Longitude</label><input className="input" value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} placeholder="121.0244" /></div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="checkpoint-latitude">Latitude</label>
+              <input id="checkpoint-latitude" className="input-spot" inputMode="decimal" value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} placeholder="14.5547" />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400" htmlFor="checkpoint-longitude">Longitude</label>
+              <input id="checkpoint-longitude" className="input-spot" inputMode="decimal" value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} placeholder="121.0244" />
+            </div>
           </div>
         </div>
       </Modal>

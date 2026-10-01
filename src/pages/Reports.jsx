@@ -8,8 +8,10 @@ import {
   Eye,
   FileSpreadsheet,
   FileText,
+  MapPin,
   Printer,
   RefreshCcw,
+  Users,
   X,
 } from 'lucide-react';
 
@@ -34,7 +36,7 @@ function downloadCsv(title, rows) {
  * Existing report types, data mapping, CSV generation, filters, and layout
  * remain unchanged.
  */
-function ReportPreviewModal({ open, onClose, report, rows }) {
+function ReportPreviewModal({ open, onClose, report, rows, patrolGroups }) {
   if (!open || !report) return null;
 
   const headers = rows[0] || [];
@@ -130,51 +132,73 @@ function ReportPreviewModal({ open, onClose, report, rows }) {
                 {report.title}
               </h2>
 
-              <div className="mt-3 overflow-x-auto rounded-lg border border-slate-300 print:overflow-visible">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead className="bg-slate-900 text-white">
-                    <tr>
-                      {headers.map((header, index) => (
-                        <th
-                          key={`${header}-${index}`}
-                          className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 font-bold last:border-r-0"
-                        >
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
+              {report.reportType === 'Daily Patrol Summary' ? (
+                patrolGroups.length > 0 ? (
+                  <div className="mt-3 space-y-4">
+                    {patrolGroups.map((guard) => (
+                      <section key={guard.key} className="overflow-hidden rounded-xl border border-slate-300">
+                        <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900 px-4 py-3 text-white">
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-cyan-300" />
+                            <div>
+                              <div className="text-sm font-black">{guard.name}</div>
+                              <div className="mt-0.5 text-[10px] uppercase tracking-wider text-slate-300">Guard summary</div>
+                            </div>
+                          </div>
+                          <div className="flex gap-3 text-[10px] font-bold uppercase tracking-wide">
+                            <span className="text-emerald-300">{guard.success} Success</span>
+                            <span className="text-rose-300">{guard.missed} Missed</span>
+                            <span className="text-amber-300">{guard.pending} Pending</span>
+                          </div>
+                        </div>
 
-                  <tbody>
-                    {dataRows.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={Math.max(headers.length, 1)}
-                          className="px-4 py-10 text-center text-sm text-slate-500"
-                        >
-                          No records are available for this report.
-                        </td>
-                      </tr>
-                    ) : (
-                      dataRows.map((row, rowIndex) => (
-                        <tr
-                          key={`report-row-${rowIndex}`}
-                          className="border-t border-slate-200 odd:bg-white even:bg-slate-50"
-                        >
-                          {headers.map((_, cellIndex) => (
-                            <td
-                              key={`report-cell-${rowIndex}-${cellIndex}`}
-                              className="border-r border-slate-200 px-3 py-2 align-top text-slate-700 last:border-r-0"
-                            >
-                              {String(row[cellIndex] ?? '')}
-                            </td>
+                        <div className="divide-y divide-slate-200">
+                          {guard.locations.map((location) => (
+                            <div key={`${guard.key}-${location.key}`} className="grid gap-3 bg-white px-4 py-3 sm:grid-cols-[1.4fr_1fr_1fr] sm:items-center">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4 shrink-0 text-blue-700" />
+                                <div>
+                                  <div className="text-xs font-black text-slate-900">{location.name}</div>
+                                  <div className="text-[10px] text-slate-500">{location.total} patrol{location.total === 1 ? '' : 's'}</div>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-bold uppercase tracking-wide">
+                                <div className="rounded-md bg-emerald-50 px-2 py-1.5 text-emerald-700">{location.success}<span className="block text-[8px] font-semibold">Success</span></div>
+                                <div className="rounded-md bg-rose-50 px-2 py-1.5 text-rose-700">{location.missed}<span className="block text-[8px] font-semibold">Missed</span></div>
+                                <div className="rounded-md bg-amber-50 px-2 py-1.5 text-amber-700">{location.pending}<span className="block text-[8px] font-semibold">Pending</span></div>
+                              </div>
+                              <div className="text-left text-[10px] text-slate-500 sm:text-right">{location.completedCheckpoints} checkpoints completed</div>
+                            </div>
                           ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-lg border border-dashed border-slate-300 px-4 py-10 text-center text-sm text-slate-500">No records are available for this report.</div>
+                )
+              ) : (
+                <div className="mt-3 overflow-x-auto rounded-lg border border-slate-300 print:overflow-visible">
+                  <table className="w-full border-collapse text-left text-xs">
+                    <thead className="bg-slate-900 text-white">
+                      <tr>
+                        {headers.map((header, index) => (
+                          <th key={`${header}-${index}`} className="whitespace-nowrap border-r border-slate-700 px-3 py-2.5 font-bold last:border-r-0">{header}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dataRows.length === 0 ? (
+                        <tr><td colSpan={Math.max(headers.length, 1)} className="px-4 py-10 text-center text-sm text-slate-500">No records are available for this report.</td></tr>
+                      ) : dataRows.map((row, rowIndex) => (
+                        <tr key={`report-row-${rowIndex}`} className="border-t border-slate-200 odd:bg-white even:bg-slate-50">
+                          {headers.map((_, cellIndex) => <td key={`report-cell-${rowIndex}-${cellIndex}`} className="border-r border-slate-200 px-3 py-2 align-top text-slate-700 last:border-r-0">{String(row[cellIndex] ?? '')}</td>)}
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             <div className="mt-8 grid gap-8 border-t border-slate-300 pt-8 sm:grid-cols-2">
@@ -269,6 +293,59 @@ export default function Reports() {
     ])];
     return [['Guard', 'Site', 'Status', 'Progress', 'Completed', 'Total'], ...patrols.map((item) => [item.guardName, item.siteName, item.status, `${item.progressPct}%`, item.completedCount, item.totalCount])];
   }, [reportType, auditLogs, incidents, checkpointLogs, patrols, siteNameById]);
+
+  const patrolGroups = useMemo(() => {
+    const guards = new Map();
+
+    patrols.forEach((patrol) => {
+      const guardName = String(patrol.guardName || 'Unknown Guard').trim();
+      const locationName = String(patrol.siteName || patrol.siteId || 'Unknown Location').trim();
+      const guardKey = guardName.toLowerCase().replace(/\s+/g, ' ');
+      const locationKey = locationName.toLowerCase().replace(/\s+/g, ' ');
+      const status = String(patrol.status || 'PENDING').trim().toUpperCase().replace(/[\s-]+/g, '_');
+      const isSuccess = ['COMPLETED', 'COMPLETE'].includes(status);
+      const isMissed = status === 'MISSED';
+
+      if (!guards.has(guardKey)) {
+        guards.set(guardKey, {
+          key: guardKey,
+          name: guardName,
+          success: 0,
+          missed: 0,
+          pending: 0,
+          locations: new Map()
+        });
+      }
+
+      const guard = guards.get(guardKey);
+      if (isSuccess) guard.success += 1;
+      else if (isMissed) guard.missed += 1;
+      else guard.pending += 1;
+
+      if (!guard.locations.has(locationKey)) {
+        guard.locations.set(locationKey, {
+          key: locationKey,
+          name: locationName,
+          total: 0,
+          success: 0,
+          missed: 0,
+          pending: 0,
+          completedCheckpoints: 0
+        });
+      }
+
+      const location = guard.locations.get(locationKey);
+      location.total += 1;
+      location.completedCheckpoints += Number(patrol.completedCount) || 0;
+      if (isSuccess) location.success += 1;
+      else if (isMissed) location.missed += 1;
+      else location.pending += 1;
+    });
+
+    return Array.from(guards.values())
+      .map((guard) => ({ ...guard, locations: Array.from(guard.locations.values()) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [patrols]);
 
   const generate = () => {
     const title = `${reportType} (${dateRange})`;
@@ -417,6 +494,7 @@ export default function Reports() {
         onClose={() => setPreviewOpen(false)}
         report={generatedReport}
         rows={reportRows}
+        patrolGroups={patrolGroups}
       />
     </>
   );

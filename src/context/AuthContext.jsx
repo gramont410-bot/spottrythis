@@ -54,22 +54,33 @@ export function AuthProvider({ children }) {
       const unsub = onAuthStateChanged(auth, async (u) => {
         setUser(u);
         if (u) {
+          let claims = {};
           try {
             const token = await getIdTokenResult(u, true);
-            const claims = token.claims || {};
+            claims = token.claims || {};
             if (db) {
               const snap = await getDoc(doc(db, 'users', u.uid));
               const profileData = snap.exists() ? snap.data() : {};
-              const normalizedRole = normalizeRole(profileData.role || claims.role);
+              const normalizedRole = normalizeRole(
+                profileData.role || profileData.userRole || claims.role || claims.userRole
+              );
+              const clientId = profileData.clientId || profileData.clientID || claims.clientId || claims.clientID || '';
               setProfile(snap.exists()
-                ? { id: u.uid, ...profileData, role: normalizedRole, clientId: profileData.clientId || claims.clientId || '' }
-                : { id: u.uid, role: normalizedRole, clientId: claims.clientId || '', name: u.displayName || u.email, agency: '', phone: '' }
+                ? { id: u.uid, ...profileData, role: normalizedRole, clientId }
+                : { id: u.uid, role: normalizedRole, clientId, name: u.displayName || u.email, agency: '', phone: '' }
               );
             } else {
-              setProfile({ id: u.uid, role: normalizeRole(claims.role), clientId: claims.clientId || '', name: u.displayName || u.email, agency: '', phone: '' });
+              setProfile({ id: u.uid, role: normalizeRole(claims.role || claims.userRole), clientId: claims.clientId || claims.clientID || '', name: u.displayName || u.email, agency: '', phone: '' });
             }
           } catch {
-            setProfile({ id: u.uid, role: ROLES.GUARD, name: u.displayName || u.email, agency: '', phone: '' });
+            setProfile({
+              id: u.uid,
+              role: normalizeRole(claims.role || claims.userRole),
+              clientId: claims.clientId || claims.clientID || '',
+              name: u.displayName || u.email,
+              agency: '',
+              phone: ''
+            });
           }
         } else {
           setProfile(null);
