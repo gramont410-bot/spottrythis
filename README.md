@@ -4,7 +4,28 @@ S.P.O.T. means **Security Patrol Operations & Tracking**. It is the web command 
 
 The web application uses Firebase Authentication, Cloud Firestore, Cloud Storage, Firebase Functions, Leaflet maps, and real-time Firestore listeners.
 
+> **Project status:** Active web command center for agency operations, client workspaces, and field telemetry.
+
+## Contents
+
+- [Quick Start](#quick-start)
+- [Account Hierarchy](#account-hierarchy)
+- [Role Capabilities](#role-capabilities)
+- [Feature Map](#feature-map)
+- [Real-Time Data Flow](#real-time-data-flow)
+- [Firebase Setup](#firebase-setup)
+- [Firestore Collections](#firestore-collections)
+- [Project Structure](#project-structure)
+- [Validation](#validation)
+
 ## Quick Start
+
+### Prerequisites
+
+- Node.js 18 or newer
+- npm
+- A Firebase project for authentication, Firestore, Storage, and Functions
+- Firebase CLI for deployment
 
 ```bash
 npm install
@@ -21,7 +42,38 @@ npm run build
 npm run preview
 ```
 
+The development server is available at the URL printed by Vite, usually `http://localhost:5173`.
+
+### Environment Variables
+
+The checked-in `.env.example` contains optional face-verification settings:
+
+```env
+VITE_FACE_API_PROVIDER=azure
+VITE_AZURE_FACE_ENDPOINT=https://YOUR_RESOURCE_NAME.cognitiveservices.azure.com
+VITE_AZURE_FACE_KEY=YOUR_AZURE_FACE_KEY
+```
+
+Firebase web configuration can also be supplied through `VITE_FB_*` variables. Keep secrets in the local `.env` file and never commit it.
+
 The `dev` and `build` scripts use the project-local Vite binary. If the shell says `vite` is not recognized, run `npm install` from the project root; do not install Vite globally.
+
+## Account Hierarchy
+
+The operational hierarchy has three levels:
+
+```text
+SUPERADMIN / Agency owner
+  -> manages the platform, client organizations, access, sites, and global operations
+
+ADMIN / Client organization
+  -> manages assigned facilities, guards, schedules, patrols, and client operations
+
+USER / Guard
+  -> uses the field app and submits patrol, QR, attendance, incident, and telemetry data
+```
+
+The application also supports a client-scoped portal. A portal account is represented by `role: client`, or by an `admin` account linked to a `clientId`; both are routed to the restricted client workspace.
 
 ## Business Model
 
@@ -336,6 +388,13 @@ cd ..
 firebase deploy --only functions,firestore:rules
 ```
 
+For a complete web deployment, build first and deploy Hosting, Functions, Firestore rules, and Storage rules:
+
+```bash
+npm run build
+firebase deploy --only hosting,functions,firestore:rules,storage
+```
+
 Important Functions include:
 
 - `createManagedAccount`
@@ -418,6 +477,8 @@ node --check functions/index.js
 ```
 
 The production build may report a Vite bundle-size warning. That warning does not mean Vite is missing or that the app failed to compile.
-#   s p o t t r y t h i s  
- #   s p o t t r y t h i s  
+#   s p o t t r y t h i s 
+ 
+ #   s p o t t r y t h i s 
+ 
  

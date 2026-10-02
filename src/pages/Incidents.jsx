@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import Layout from '../components/Layout';
 import { useSpot } from '../context/SpotContext';
 import {
@@ -122,6 +122,27 @@ export default function Incidents() {
     (inc) => priorityFilter === 'All' || inc.priority === priorityFilter
   );
 
+  const incidentGroups = useMemo(() => {
+    const groups = new Map();
+    filteredIncidents.forEach((incident) => {
+      const siteName = String(incident.siteName || 'Unknown Site').trim();
+      const locationName = String(incident.location || 'Unspecified location').trim();
+      const groupKey = `${siteName.toLowerCase()}::${locationName.toLowerCase()}`;
+      if (!groups.has(groupKey)) {
+        groups.set(groupKey, { key: groupKey, siteName, locationName, incidents: [], reporters: new Map() });
+      }
+      const group = groups.get(groupKey);
+      group.incidents.push(incident);
+      const reporterName = String(incident.reporterName || 'Unknown guard').trim();
+      const reporterKey = reporterName.toLowerCase();
+      group.reporters.set(reporterKey, (group.reporters.get(reporterKey) || 0) + 1);
+    });
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      reporters: Array.from(group.reporters.entries()).map(([name, count]) => ({ name, count }))
+    }));
+  }, [filteredIncidents]);
+
   const handleAdd = async () => {
     if (!addForm.title.trim()) return;
     setSaving(true);
@@ -214,8 +235,21 @@ export default function Incidents() {
             <div className="text-xs text-slate-500">Database is clear. Use "Log New Incident" to file a report.</div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredIncidents.map((incident) => (
+          <div className="space-y-6">
+            {incidentGroups.map((group) => (
+              <section key={group.key} className="space-y-3">
+                <div className="flex flex-col gap-3 rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-black uppercase tracking-[0.16em] text-cyan-300">Incident location</div>
+                    <h3 className="mt-1 truncate text-sm font-black text-white">{group.siteName}</h3>
+                    <div className="mt-1 text-xs text-slate-400">{group.locationName} · {group.incidents.length} report{group.incidents.length === 1 ? '' : 's'}</div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {group.reporters.map((reporter) => <span key={reporter.name} className="inline-flex items-center rounded-full border border-blue-400/20 bg-blue-400/10 px-2.5 py-1 text-[10px] font-bold text-blue-200">{reporter.name} · {reporter.count}</span>)}
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {group.incidents.map((incident) => (
               <div
                 key={incident.id}
                 onClick={() => setSelectedIncident(incident)}
@@ -283,6 +317,9 @@ export default function Incidents() {
                   <span>→</span>
                 </div>
               </div>
+            ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
